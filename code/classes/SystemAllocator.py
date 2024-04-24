@@ -1,9 +1,11 @@
-from ForcefieldPartials import FF_atom, FF_nonbond, FF_bond, FF_angle, FF_torsion, FF_improper
-import ForceFieldLoader
-import Atom
+from ForcefieldPartials import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef
+from ForceFieldLoader import ForceFieldLoader
+from Atom import Atom
 from typing import List
-import ForceFieldLoader
-import Unitcell
+from Unitcell import Unitcell
+from SystemPartials import Bond, Angle, Torsion, Improper
+
+
 
 class SystemAllocator:
     def __init__(self, Unitcell, ForceFieldLoader):
@@ -12,16 +14,10 @@ class SystemAllocator:
 
         self.ff_atoms: List[FF_atom] = ForceFieldLoader.ff_atoms
 
-        self.pair_coeffs: = []
-        self.bond_coeffs: = []
-        self.angle_coeffs: = []
-        self.torsion_coeffs: = []
-        self.improper_coeffs: = []
-
-        self.bonds: = []
-        self.angles: = []
-        self.torsions: = []
-        self.impropers: = []
+        self.bonds: List[Bond] = []
+        self.angles: List[Angle] = []
+        self.torsions: List[Torsion] = []
+        self.impropers: List[Improper] = []
 
 
     # Manual function I think
@@ -37,35 +33,23 @@ class SystemAllocator:
                     atom.ff_atom = ff_atom
                     break
 
-    # Manual function I think
-    def give_atom_bonds(self):
-        for atom in self.atoms:
-            for bond in self.bonds:
-                if atom.ff_atom == bond.ff_atoms[0]:
-                    pass
+
+    def add_bond(self, Bond):
+        pass
     
-    # Manual function I think               
-    def give_atom_angles(self):
+    def add_angle(self, Angle):
         pass
-        # Here we will allocate the angles to the atoms
 
-    # Manual function I think
-    def give_atom_torsions(self):
+    def add_torsion(self, Torsion):
         pass
-        # Here we will allocate the torsions to the atoms
+
+    def add_improper(self, Improper):
+        pass
+
+    # Not sure what order this should be done in, depends if above functions are partial manual or automatic
+    def rescale_unitcell(self):
+        pass
     
-    # Manual function I think
-    def give_atom_impropers(self):
-        pass
-        # Here we will allocate the impropers to the atoms
-
-
-    def duplicate_unitcell(self):
-        pass
-        # Watch out for id's!!!
-
-        # Here we will duplicate the unitcell and store it in a new object
-        # This will involve copying the atom positions and elements
 
    
 
