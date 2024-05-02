@@ -1,4 +1,5 @@
-from ForcefieldPartials import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef, FF_equivalence
+from code.classes.ForcefieldPartials import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef, FF_equivalence
+from typing import List, Set
 
 """
 Force Field Loader Module for Molecular Dynamics Simulations
@@ -7,7 +8,6 @@ Description:
     This module provides classes and functions to load, manage, and process
     force field parameters from specified file paths within 'forcefields/' directory.
     It uses the FF_atom, FF_nonbond_coef, FF_bond, FF_angle, FF_torsion, FF_improper, and FF_equivalence classes 
-    
     - loads cvff data from clayff and cvff forcefields in .frc files
     - also works with only one file
     - loads atom types, equivalences, nonbond_coef, bond_coef, angle_coef, torsion_coef, improper_coef parameters
@@ -25,10 +25,10 @@ class ForceFieldLoader:
         self.ff_atoms: List[FF_atom] = []
         self.ff_equivalences: List[FF_equivalence] = []
         self.nonbond_coefs: List[FF_nonbond_coef] = []
-        self.bond_coefs: List[FF_bond] = []
-        self.angle_coefs: List[FF_angle] = []
-        self.torsion_coefs: List[FF_torsion] = []
-        self.improper_coefs: List[FF_improper] = []
+        self.bond_coefs: List[FF_bond_coef] = []
+        self.angle_coefs: List[FF_angle_coef] = []
+        self.torsion_coefs: List[FF_torsion_coef] = []
+        self.improper_coefs: List[FF_improper_coef] = []
         self.duplicates: Set[str] = set()
 
         self.load_all_forcefield_params()
@@ -157,12 +157,11 @@ class ForceFieldLoader:
                 if line.startswith('!') or line.strip() == '' or line.startswith('>') or line.startswith('@'):
                     continue
                 line_parts = line.strip().split()
-                if len(line_parts) > 1 and line_parts[0] == '#nonbond_coef(12-6)' and line_parts[1] == 'cvff':
+                if len(line_parts) > 1 and line_parts[0] == '#nonbond(12-6)' and line_parts[1] == 'cvff':
                     start_processing = True
                     continue
                 if start_processing:
                     parts = line.strip().split()
-
                     ff_nonbond_coef = FF_nonbond_coef()
                     ff_nonbond_coef.ff_atoms = self.find_ff_atom(parts[2], i)
                     A, B = float(parts[3]), float(parts[4])
@@ -413,15 +412,10 @@ class ForceFieldLoader:
                 ordered_atoms = (angle_coef.ff_atoms[0].type, angle_coef.ff_atoms[1].type, angle_coef.ff_atoms[2].type)
 
                 if ordered_atoms in seen_angles:
-                    print(f"Duplicate angle_coef found between atoms {ordered_atoms[0]}, {ordered_atoms[1]}, and {ordered_atoms[2]}")
+                    #print(f"Duplicate angle_coef found between atoms {ordered_atoms[0]}, {ordered_atoms[1]}, and {ordered_atoms[2]}")
                     duplicates = True
                 else:
                     seen_angles.add(ordered_atoms)
-
-        if not duplicates:
-            print("No duplicate angle_coefs found.")
-
-
 
 def test_forcefield_params():
     # Create an instance of the ForceFieldLoader
@@ -518,5 +512,5 @@ def test_forcefield_params():
 
  
 # Call the test function
-test_forcefield_params()
+# test_forcefield_params()
 

@@ -24,7 +24,6 @@ class FF_equivalence:
 
 class FF_nonbond_coef:
     def __init__(self) -> None:
-        self.id: int = None
         self.ff_atoms: FF_atom = None
         self.epsilon = None
         self.sigma = None

@@ -1,19 +1,11 @@
-from code.classes.unitcell import Unitcell
-from code.classes.forcefieldparams import ForceFieldParams
+from code.classes.SystemWriter import SystemWriter
 
 if __name__ == '__main__':
-    try:
-        # Ensure that 'chim222' is passed as a string
-        unitcell = Unitcell('chim222')
 
-        # Check if any atoms were read
-        if not unitcell.atoms:
-            print("No atoms were read from the file.")
+    system = SystemWriter(file_name     =     'STx_prot', 
+                          replication   =     (5,5), 
+                          height        =     15,
+                          al_mg_ratio   =     8)
 
-        # Print out the elements and positions
-        for atom in unitcell.atoms:
-            print(f'Element: {atom.element}, Position: {atom.position}')
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    
 
