@@ -189,7 +189,7 @@ class ForceFieldLoader:
                     ff_bond = FF_bond_coef()
                     ff_bond.ff_atoms = [self.find_ff_atom(parts[2], i), self.find_ff_atom(parts[3], i)]
                     ff_bond.r0 = float(parts[4])
-                    ff_bond.k = float(parts[5]) / 2
+                    ff_bond.k = float(parts[5])
                     
                     self.bond_coefs.append(ff_bond)
 
@@ -213,7 +213,7 @@ class ForceFieldLoader:
                     ff_angle = FF_angle_coef()
                     ff_angle.ff_atoms = [self.find_ff_atom(parts[2],i), self.find_ff_atom(parts[3],i), self.find_ff_atom(parts[4],i)]
                     ff_angle.theta0 = float(parts[5])
-                    ff_angle.k = float(parts[6]) / 2
+                    ff_angle.k = float(parts[6])
                     
                     self.angle_coefs.append(ff_angle)
 

@@ -8,11 +8,11 @@ import math
 
 
 class SystemAllocator:
-    def __init__(self, file_name, replication, height, al_mg_ratio) -> None:
+    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio) -> None:
 
         # Before allocation:
 
-        self.unitcell = UnitcellBuilder(file_name, replication, height, al_mg_ratio)
+        self.unitcell = UnitcellBuilder(file_name, replication, height, al_mg_ratio, ca_si_ratio)
         self.dimensions = self.unitcell.dimensions
         self.atoms: List[Atom] = self.unitcell.atoms
         self.molecules: List[Molecule] = self.unitcell.molecules
@@ -80,6 +80,7 @@ class SystemAllocator:
     def allocate_ff_atoms(self):
         self.add_clay_ff()
         self.add_clay_ff_oxygens()
+        self.add_solvent_and_ions()
 
     def allocate_bonds(self):
         self.add_nonbonds()
@@ -150,7 +151,18 @@ class SystemAllocator:
                                     oxygen_atom.ff_atom = ff_atom
                                     self.used_ff_atoms.add(ff_atom)
                                     break
-
+    def add_solvent_and_ions(self):
+        for molecule in self.molecules:
+            if len(molecule.atoms) == 1:
+                if molecule.atoms[0].element == "Ca":
+                    for ff_atom in self.ff_atoms:
+                        if ff_atom.type == "Ca":
+                            molecule.atoms[0].ff_atom = ff_atom
+                            self.used_ff_atoms.add(ff_atom)
+                            break
+            if len(molecule.atoms) == 3:
+                pass
+    
     def add_nonbonds(self):
         for nonbond_coef in self.nonbond_coefs:
             for ff_atom in self.used_ff_atoms:

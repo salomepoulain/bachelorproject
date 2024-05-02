@@ -4,18 +4,14 @@ from code.classes.SystemPartials import Bond, Angle, Torsion, Improper
 from code.classes.UnitcellPartials import Atom, Molecule
 from typing import List
 
-'''
-ALL TO BE IMPLEMENTED
-'''
-
 class SystemWriter:
-    def __init__(self, file_name, replication, height, al_mg_ratio):
+    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio):
 
         # Load system in from all other classes
         
         self.file_name = file_name
         self.replication = replication
-        self.system = SystemAllocator(file_name, replication, height, al_mg_ratio)
+        self.system = SystemAllocator(file_name, replication, height, al_mg_ratio, ca_si_ratio)
 
         self.dimensions = self.system.dimensions 
         self.atoms = self.system.atoms
@@ -187,8 +183,9 @@ class SystemWriter:
 
     def store_masses(self):
         self.stored_masses.append("Masses\n")
-        for ff_atom in self.used_ff_atoms:
-            description = "#" + ff_atom.description
+        sorted_atoms = sorted(self.used_ff_atoms, key=lambda atom: atom.id)
+        for ff_atom in sorted_atoms:
+            description = "# " + ff_atom.description
             self.stored_masses.append((ff_atom.id, ff_atom.mass, description))
 
     def store_pair_coeffs(self):

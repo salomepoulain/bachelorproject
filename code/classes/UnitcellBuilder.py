@@ -1,11 +1,13 @@
 from code.classes.UnitcellPartials import Atom, Molecule
 from typing import Tuple
+import math
 
 class UnitcellBuilder:
-    def __init__(self, file_name, replication, height, al_mg_ratio) -> None:
+    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio) -> None:
         self.file_name = file_name
         self.height = height
         self.al_mg_ratio = al_mg_ratio
+        self.ca_si_ratio = ca_si_ratio
         self.replication: Tuple[int, int] = replication
         
         self.dimensions = (None, None, None)
@@ -20,7 +22,7 @@ class UnitcellBuilder:
         self.add_clay_to_molecules()
         self.mg_substitute()
         self.expand_simulation_height()
-        self.add_ions()
+        self.add_ions_uniformly()
         self.add_solvent()
         
     def read_xyz(self, file_name):
@@ -113,6 +115,7 @@ class UnitcellBuilder:
                 x, y, z = atom.position
                 file.write(f"{element} {x} {y} {z}\n")
 
+    # Periodicity?
     def mg_substitute(self):
         substitution_ratio = self.al_mg_ratio  # Aluminium to Magnesium substitution ratio
         fraction = 1 / substitution_ratio
@@ -130,7 +133,7 @@ class UnitcellBuilder:
                     substitution_count += 1
                     cumulative_fraction -= 1  # Reset part of the cumulative fraction
 
-        self.write_xyz(self.file_name + "_mg_substitute")
+        self.write_xyz(self.file_name + "_mg")
 
     def rescale_coordinates(self):
         target_heigth = 9.6 #aromstrong
@@ -151,11 +154,56 @@ class UnitcellBuilder:
     def add_solvent(self):
         pass
 
-    def add_ions(self):
-        pass
-    
-        
-    
+    def custom_round(self, number):
+        if (number - math.floor(number)) < 0.5:
+            return int(math.floor(number))
+        else:
+            return int(math.ceil(number))
+
+    def add_ions_uniformly(self):
+        ion_ratio = self.ca_si_ratio
+        total_si = len([atom for atom in self.atoms if atom.element == 'Si'])
+        ion_count = self.custom_round(total_si * ion_ratio)
+
+        if ion_count == 0:
+            return
+
+        ca_height = self.dimensions[2] / 2
+
+        n_x = int(ion_count ** 0.5)
+        n_y = n_x if n_x * n_x == ion_count else n_x + 1
+
+        x_spacing = self.dimensions[0] / (n_x if n_x > 1 else 1)
+        y_spacing = self.dimensions[1] / (n_y if n_y > 1 else 1)
+
+        ca_ions_added = 0
+
+        for j in range(n_y):
+            for i in range(n_x):
+                if ca_ions_added >= ion_count:
+                    break
+                x = (i * x_spacing) % self.dimensions[0]  # Apply PBC along x-axis
+                y = (j * y_spacing) % self.dimensions[1]  # Apply PBC along y-axis
+                atom = Atom()
+                atom.element = 'Ca'
+                atom.position = (x, y, ca_height)
+                self.atoms.append(atom)
+                ion = Molecule()
+                ion.type = 'ion'
+                ion.atoms = [atom]
+                self.molecules.append(ion)
+
+                ca_ions_added += 1
+
+        self.write_xyz(self.file_name + "_mg_ion")
+
+
+
+    def displace_simulation_box(self):
+        for molecule in self.molecules:
+            if molecule.type == "clay":
+                pass
+
 
     # def calculate(self):
     #     list = []
