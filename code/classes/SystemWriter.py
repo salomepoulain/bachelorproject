@@ -118,7 +118,6 @@ class SystemWriter:
         for index, ff_atom in enumerate(sorted_atoms, start=1):
             ff_atom.id = index
 
-    
     def give_bond_id(self):
         if len(self.bonds) == 0:
             return
@@ -177,9 +176,9 @@ class SystemWriter:
         self.stored_description.append(f"{len(self.used_torsion_coefs)} dihedral types")
         self.stored_description.append(f"{len(self.used_improper_coefs)} improper types\n")
 
-        self.stored_description.append(f"0 {self.dimensions[0]} xlo xhi")
-        self.stored_description.append(f"0 {self.dimensions[1]} ylo yhi")
-        self.stored_description.append(f"0 {self.dimensions[2]} zlo zhi\n")
+        self.stored_description.append(f"{self.dimensions[0][0]} {self.dimensions[0][1]} xlo xhi")
+        self.stored_description.append(f"{self.dimensions[1][0]} {self.dimensions[1][1]} ylo yhi")
+        self.stored_description.append(f"{self.dimensions[2][0]} {self.dimensions[2][1]} zlo zhi\n")
 
     def store_masses(self):
         self.stored_masses.append("Masses\n")
@@ -306,7 +305,7 @@ class SystemWriter:
 
 
     def write_data_file(self):
-        self.data_file = open("output/" + self.file_name + ".data", "w")
+        self.data_file = open("output/" + self.file_name + str(self.replication) + ".data", "w")
         self.write_section(self.stored_description)
         
         self.write_section(self.stored_masses)

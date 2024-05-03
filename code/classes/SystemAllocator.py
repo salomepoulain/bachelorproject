@@ -68,14 +68,18 @@ class SystemAllocator:
     '''
     def distance(self, atom1, atom2):
         normal_distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(atom1.position, atom2.position)))
+
         pbc_distance = []
-        for dim, (a, b) in zip(self.dimensions, zip(atom1.position, atom2.position)):
+        for (dim_lo, dim_hi), (a, b) in zip(self.dimensions, zip(atom1.position, atom2.position)):
+            length = dim_hi - dim_lo  
             delta = b - a
-            delta -= round(delta / dim) * dim  
+            delta -= round(delta / length) * length
             pbc_distance.append(delta ** 2)
+        
         pbc_distance = math.sqrt(sum(pbc_distance))
 
         return min(normal_distance, pbc_distance)
+
     
     def allocate_ff_atoms(self):
         self.add_clay_ff()

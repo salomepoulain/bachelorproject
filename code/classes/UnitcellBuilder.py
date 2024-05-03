@@ -10,18 +10,18 @@ class UnitcellBuilder:
         self.ca_si_ratio = ca_si_ratio
         self.replication: Tuple[int, int] = replication
         
-        self.dimensions = (None, None, None)
+        self.dimensions = ((None, None), (None, None), (None, None))
         self.atoms = []
         self.molecules = []
 
         self.read_xyz(file_name)
         self.translate_to_zero()
-        self.get_unit_cell_dimensions()
         # self.rescale_coordinates()  # Not sure if needed ?????
         self.expand_and_duplicate()
         self.add_clay_to_molecules()
         self.mg_substitute()
         self.expand_simulation_height()
+        self.translate_simulation_height()
         self.add_ions_uniformly()
         self.add_solvent()
         
@@ -54,13 +54,16 @@ class UnitcellBuilder:
         for atom in self.atoms:
             x, y, z = atom.position
             atom.position = (x - min_x, y - min_y, z - min_z)
+        
+        self.get_unit_cell_dimensions()
 
     def get_unit_cell_dimensions(self):
         if not self.atoms:
-            return (0, 0, 0)
+            self.dimensions = ((0, 0), (0, 0), (0, 0))
+            return
         
-        min_x, min_y, min_z = self.atoms[0].position
-        max_x, max_y, max_z = self.atoms[0].position
+        min_x = min_y = min_z = float('inf')
+        max_x = max_y = max_z = float('-inf')
         
         for atom in self.atoms:
             x, y, z = atom.position
@@ -71,16 +74,12 @@ class UnitcellBuilder:
             min_z = min(min_z, z)
             max_z = max(max_z, z)
         
-        x = max_x - min_x
-        y = max_y - min_y
-        z = max_z - min_z
-        
-        self.dimensions = (x, y, z)
+        self.dimensions = ((min_x, max_x), (min_y, max_y), (min_z, max_z))
 
     def expand_and_duplicate(self):
         original_atoms = list(self.atoms)
-        unit_x = self.dimensions[0]
-        unit_y = self.dimensions[1]
+        unit_x = self.dimensions[0][1] - self.dimensions[0][0]
+        unit_y = self.dimensions[1][1] - self.dimensions[1][0]
         n_x, n_y = self.replication
         
         self.atoms.clear()
@@ -102,7 +101,8 @@ class UnitcellBuilder:
     def add_clay_to_molecules(self):
         clay = Molecule()
         clay.type = "clay"
-        clay.atoms = self.atoms
+        for atom in self.atoms:
+            clay.atoms.append(atom)
         self.molecules.append(clay)
 
     def write_xyz(self, output_file):
@@ -149,7 +149,31 @@ class UnitcellBuilder:
         self.get_unit_cell_dimensions()
 
     def expand_simulation_height(self):
-        self.dimensions = (self.dimensions[0], self.dimensions[1], self.height)
+        self.dimensions = (self.dimensions[0], self.dimensions[1], (self.dimensions[2][0], self.dimensions[2][0] + self.height))
+
+    def get_clay_height(self):
+        zhi = None
+        zlo = None
+        
+        for molecule in self.molecules:
+            if molecule.type == 'clay':
+                for atom in molecule.atoms:
+                    _, _, z = atom.position
+                    
+                    if zhi is None or zlo is None:
+                        zhi = zlo = z
+                    else:
+                        zhi = max(zhi, z)
+                        zlo = min(zlo, z)
+
+            return zhi, zlo
+
+    def translate_simulation_height(self):
+        zhi, zlo = self.get_clay_height()
+        distance = zhi - zlo
+        half_distance = distance / 2   
+
+        self.dimensions = (self.dimensions[0], self.dimensions[1], (self.dimensions[2][0] + half_distance, self.dimensions[2][1] + half_distance))
 
     def add_solvent(self):
         pass
@@ -168,13 +192,15 @@ class UnitcellBuilder:
         if ion_count == 0:
             return
 
-        ca_height = self.dimensions[2] / 2
+        ca_height = (self.dimensions[2][0] + self.dimensions[2][1]) / 2
+        print(self.dimensions[2])
+        print(f"Ca height: {ca_height}")
 
         n_x = int(ion_count ** 0.5)
         n_y = n_x if n_x * n_x == ion_count else n_x + 1
 
-        x_spacing = self.dimensions[0] / (n_x if n_x > 1 else 1)
-        y_spacing = self.dimensions[1] / (n_y if n_y > 1 else 1)
+        x_spacing = (self.dimensions[0][1] - self.dimensions[0][0]) / (n_x if n_x > 1 else 1)
+        y_spacing = (self.dimensions[1][1] - self.dimensions[1][0]) / (n_y if n_y > 1 else 1)
 
         ca_ions_added = 0
 
@@ -182,15 +208,17 @@ class UnitcellBuilder:
             for i in range(n_x):
                 if ca_ions_added >= ion_count:
                     break
-                x = (i * x_spacing) % self.dimensions[0]  # Apply PBC along x-axis
-                y = (j * y_spacing) % self.dimensions[1]  # Apply PBC along y-axis
+                x = self.dimensions[0][0] + (i * x_spacing) % (self.dimensions[0][1] - self.dimensions[0][0])
+                y = self.dimensions[1][0] + (j * y_spacing) % (self.dimensions[1][1] - self.dimensions[1][0])
+
                 atom = Atom()
                 atom.element = 'Ca'
                 atom.position = (x, y, ca_height)
                 self.atoms.append(atom)
+                
                 ion = Molecule()
                 ion.type = 'ion'
-                ion.atoms = [atom]
+                ion.atoms.append(atom)
                 self.molecules.append(ion)
 
                 ca_ions_added += 1
@@ -198,6 +226,9 @@ class UnitcellBuilder:
         self.write_xyz(self.file_name + "_mg_ion")
 
 
+        for molecule in self.molecules:
+            if molecule.type == 'clay':
+                print(len(molecule.atoms))
 
     def displace_simulation_box(self):
         for molecule in self.molecules:
@@ -221,21 +252,22 @@ class UnitcellBuilder:
     def trim_structure(self):
         x_trim_start = -2.876
         x_trim_end = 2.316
-        y_trim_start =  -7.664
+        y_trim_start = -7.664
         y_trim_end = 1.351
-
+        
         self.atoms = [atom for atom in self.atoms if x_trim_start <= atom.position[0] < x_trim_end and y_trim_start <= atom.position[1] < y_trim_end]
-
-        unit_x = x_trim_end - x_trim_start
-        unit_y = y_trim_end - y_trim_start
-        unit_z = self.dimensions[2] 
-
+        
+        unit_x = (x_trim_start, x_trim_end)
+        unit_y = (y_trim_start, y_trim_end)
+        unit_z = self.dimensions[2]  # Assumes z-dimension is unaffected by trimming
+        
         self.dimensions = (unit_x, unit_y, unit_z)
 
         print(f"New dimensions: {self.dimensions}")
         print(f"Number of atoms after trimming: {len(self.atoms)}")
-
+        
         output_file_name = self.file_name + "_trim.xyz"
         self.write_xyz(output_file_name)
+
 
 

@@ -18,7 +18,7 @@ if __name__ == '__main__':
                           replication   =     (6,6), 
                           height        =     30,
                           al_mg_ratio   =     7.1702509,    # Based on STx1b data (Castellini 2017)
-                          ca_si_ratio   =     0.055125       # Based on STx1b data (Castellini 2017)
+                          ca_si_ratio   =     0.055125      # Based on STx1b data (Castellini 2017)
                           )        
 
     
