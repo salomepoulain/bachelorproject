@@ -5,50 +5,64 @@ from code.classes.UnitcellBuilder import UnitcellBuilder
 from code.classes.SystemPartials import Bond, Angle, Torsion, Improper
 from typing import List, Set
 import math
+from itertools import combinations, permutations
+
 
 
 class SystemAllocator:
-    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio) -> None:
-
-        # Before allocation:
+    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio, ff_params) -> None:
 
         self.unitcell = UnitcellBuilder(file_name, replication, height, al_mg_ratio, ca_si_ratio)
         self.dimensions = self.unitcell.dimensions
-        self.atoms: List[Atom] = self.unitcell.atoms
         self.molecules: List[Molecule] = self.unitcell.molecules
 
         self.forcefieldloader = ForceFieldLoader()
-        self.ff_atoms: List[FF_atom] = self.forcefieldloader.ff_atoms
+        self.params = ff_params
+
+        self.ff_attributes = {}
+        for ff_type in self.params:
+            dictionary = self.forcefieldloader.get_info_by_type(ff_type)
+            self.ff_attributes[ff_type] = dictionary
+
+        self.preprocess_all()
+
         self.distance_threshold_mg = 2.0
         self.distance_threshold_h = 1.0
-        self.bond_cutoff = 1.0
+        self.bond_cutoff = 1.5
 
-        self.nonbond_coefs: List[FF_nonbond_coef] = self.forcefieldloader.nonbond_coefs
-        self.bond_coefs: List[FF_bond_coef] = self.forcefieldloader.bond_coefs
-        self.angle_coefs: List[FF_angle_coef] = self.forcefieldloader.angle_coefs
-        self.torsion_coefs: List[FF_torsion_coef] = self.forcefieldloader.torsion_coefs
-        self.improper_coefs: List[FF_improper_coef] = self.forcefieldloader.improper_coefs
-
-        # After allocation:
-
-        self.used_ff_atoms: Set[FF_atom] = set()
-        self.used_nonbond_coefs: Set[FF_nonbond_coef] = set()
-        self.used_bond_coefs: Set[FF_bond_coef] = set()
-        self.used_angle_coefs: Set[FF_angle_coef] = set()
-        self.used_torsion_coefs: Set[FF_torsion_coef] = set()
-        self.used_improper_coefs: Set[FF_improper_coef] = set()
-
-        self.bonds: List[Bond] = []
-        self.angles: List[Angle] = []
-        self.torsions: List[Torsion] = []
-        self.impropers: List[Improper] = []
+        self.pair_coeffs = []
 
         self.allocate_ff_atoms()
         self.allocate_bonds()
 
-    '''
-    Helper function to find the minimum and maximum z position of the clay atoms
-    '''
+    def preprocess_all(self):
+        self.preprocess_bond_coefs()
+        self.preprocess_angle_coefs()
+
+
+    def preprocess_bond_coefs(self):
+        for key, attributes in self.ff_attributes.items():
+            if "bond_coef" in attributes:
+                bond_dict = {}
+                for bond in attributes["bond_coef"]:
+                    pair = tuple(sorted((bond.ff_atoms[0].type, bond.ff_atoms[1].type)))
+                    bond_dict[pair] = bond
+                self.ff_attributes[key]["bond_coef"] = bond_dict
+
+    def preprocess_angle_coefs(self):
+        for key, attributes in self.ff_attributes.items():
+            if "angle_coef" in attributes:
+                angle_dict = {}
+                for angle in attributes["angle_coef"]:
+                    atoms = angle.ff_atoms
+                    if len(atoms) == 3:
+                        sorted_ends = sorted([atoms[0].type, atoms[2].type])
+                        angle_key = (sorted_ends[0], atoms[1].type, sorted_ends[1])
+                    else:
+                        continue  
+                    angle_dict[angle_key] = angle
+                self.ff_attributes[key]["angle_coef"] = angle_dict
+
     def find_min_max_z(self):
         min_z = float('inf')  
         max_z = float('-inf') 
@@ -77,18 +91,21 @@ class SystemAllocator:
             pbc_distance.append(delta ** 2)
         
         pbc_distance = math.sqrt(sum(pbc_distance))
+        min_distance = min(normal_distance, pbc_distance)
+        return min_distance
 
-        return min(normal_distance, pbc_distance)
-
-    
     def allocate_ff_atoms(self):
         self.add_clay_ff()
         self.add_clay_ff_oxygens()
-        self.add_solvent_and_ions()
+        self.add_solvent()
+        self.add_ions()
 
     def allocate_bonds(self):
-        self.add_nonbonds()
+        self.add_pair_coefficients()
         self.add_bonds()
+        self.add_angles()
+        self.add_torsion()
+        self.add_improper()
 
     def add_clay_ff(self):
         for molecule in self.molecules:
@@ -96,112 +113,147 @@ class SystemAllocator:
                 for atom in molecule.atoms:
                     # Al aluminiums are octahedral aluminums
                     if atom.element == "Al":
-                        for ff_atom in self.ff_atoms:
-                            if ff_atom.type == "ao":
-                                atom.ff_atom = ff_atom
-
-                                self.used_ff_atoms.add(ff_atom)
+                        atom.ff_atom = self.ff_attributes["ao"]["ff_atom"]
 
                     # Mg magnesiums are octahedral magnesiums
                     if atom.element == "Mg":
-                        for ff_atom in self.ff_atoms:
-                            if ff_atom.type == "mgo":
-                                atom.ff_atom = ff_atom
-
-                                self.used_ff_atoms.add(ff_atom)
+                        atom.ff_atom = self.ff_attributes["mgo"]["ff_atom"]
 
                     # Si silicons are tetrahedral silicons
                     if atom.element == "Si":
-                        for ff_atom in self.ff_atoms:
-                            if ff_atom.type == "st":
-                                atom.ff_atom = ff_atom
-
-                                self.used_ff_atoms.add(ff_atom)
+                        atom.ff_atom = self.ff_attributes["st"]["ff_atom"]
 
                     # Hydrogens are hydroxyl hydrogens
                     if atom.element == "H":
-                        for ff_atom in self.ff_atoms:
-                            if ff_atom.type == "ho":
-                                atom.ff_atom = ff_atom
-
-                                self.used_ff_atoms.add(ff_atom)
-                                
+                        atom.ff_atom = self.ff_attributes["ho"]["ff_atom"]
     
     def add_clay_ff_oxygens(self):
         min_z, max_z = self.find_min_max_z()
 
         for molecule in self.molecules:
             if molecule.type == "clay":
-                height_dictionary = {i: [] for i in range(4)}  
+                height_dictionary = {i: [] for i in range(4)} 
 
+                # Classify oxygen atoms into rows based on their z position
                 for atom in molecule.atoms:
                     if atom.element == "O":
                         z_position = atom.position[2]
-                        # Normalize z_position to range 0 to less than 1, then multiply by 4 and take the floor integer
                         row_number = int((z_position - min_z) / (max_z - min_z) * 4)
-                        # Ensure row_number is capped at 3
-                        row_number = min(row_number, 3)
+                        row_number = min(row_number, 3) 
                         height_dictionary.setdefault(row_number, []).append(atom)
 
-
                 for row in range(4):
-                    if height_dictionary[row]:
+                    if height_dictionary[row]:  
                         for oxygen_atom in height_dictionary[row]:
                             close_to_magnesium = any(atom.element == "Mg" and self.distance(oxygen_atom, atom) <= self.distance_threshold_mg for atom in molecule.atoms)
                             close_to_hydrogen = any(atom.element == "H" and self.distance(oxygen_atom, atom) <= self.distance_threshold_h for atom in molecule.atoms)
                             ff_type = 'ob' if row in [0, 3] else ('ohs' if close_to_magnesium and close_to_hydrogen else 'obos' if close_to_magnesium else 'oh' if close_to_hydrogen else 'ob')
-                            for ff_atom in self.ff_atoms:
-                                if ff_atom.type == ff_type:
-                                    oxygen_atom.ff_atom = ff_atom
-                                    self.used_ff_atoms.add(ff_atom)
-                                    break
-    def add_solvent_and_ions(self):
+                            
+                            oxygen_atom.ff_atom = self.ff_attributes[ff_type]["ff_atom"]
+                            
+    def add_ions(self):
         for molecule in self.molecules:
-            if len(molecule.atoms) == 1:
+            if molecule.type == "ion":
                 if molecule.atoms[0].element == "Ca":
-                    for ff_atom in self.ff_atoms:
-                        if ff_atom.type == "Ca":
-                            molecule.atoms[0].ff_atom = ff_atom
-                            self.used_ff_atoms.add(ff_atom)
-                            break
-            if len(molecule.atoms) == 3:
-                pass
-    
-    def add_nonbonds(self):
-        for nonbond_coef in self.nonbond_coefs:
-            for ff_atom in self.used_ff_atoms:
-                if ff_atom == nonbond_coef.ff_atoms:
-                    self.used_nonbond_coefs.add(nonbond_coef)
-                    break
+                    molecule.atoms[0].ff_atom = self.ff_attributes["Ca"]["ff_atom"]
 
-    def add_bonds(self):    
+    def add_solvent(self):
         for molecule in self.molecules:
-            # Create a dictionary to map ff_atom types to atom objects for quick lookup
-            atom_dict = {}
-            for atom in molecule.atoms:
-                if atom.ff_atom not in atom_dict:
-                    atom_dict[atom.ff_atom] = []
-                atom_dict[atom.ff_atom].append(atom)
-
-            # Loop through each bond coefficient
-            for bond_coef in self.bond_coefs:
-                ff_atom1, ff_atom2 = bond_coef.ff_atoms
-
-                # Check if both atom types are present in the dictionary
-                if ff_atom1 in atom_dict and ff_atom2 in atom_dict:
-                    # Get all atoms of type ff_atom1
-                    for atom1 in atom_dict[ff_atom1]:
-                        # Get all atoms of type ff_atom2
-                        for atom2 in atom_dict[ff_atom2]:
-                            if atom1 != atom2 and self.distance(atom1, atom2) <= self.bond_cutoff:
-                                bond = Bond()
-                                bond.ff_bond_coef = bond_coef
-                                bond.atoms = [atom1, atom2]
-                                self.used_bond_coefs.add(bond_coef)
-                                self.bonds.append(bond)     
+            if molecule.type == "water":
+                for atom in molecule.atoms:
+                    if atom.element == "O":
+                        atom.ff_atom = self.ff_attributes["o*"]["ff_atom"]
+                    if atom.element == "H":
+                        atom.ff_atom = self.ff_attributes["h*"]["ff_atom"]
     
-    def add_angle(self):
-        pass
+    def add_pair_coefficients(self):
+        used_ff = set([atom.ff_atom.type for molecule in self.molecules for atom in molecule.atoms])
+        for ff_type in used_ff:
+            self.pair_coeffs.append(self.ff_attributes[ff_type]["nonbond_coef"])
+
+    def add_bonds(self):
+        for molecule in self.molecules:
+            all_atoms = molecule.atoms
+            distance_cache = {}
+            bond_cache = {}
+
+            for atom1, atom2 in combinations(all_atoms, 2):
+                pair_key = (id(atom1), id(atom2))
+
+                if pair_key not in distance_cache:
+                    distance = self.distance(atom1, atom2)
+                    distance_cache[pair_key] = distance
+                else:
+                    distance = distance_cache[pair_key]
+
+                if distance > self.bond_cutoff:
+                    continue
+
+                if molecule.is_bonded(atom1, atom2):
+                    continue
+
+                bond_types = tuple(sorted((atom1.ff_atom.type, atom2.ff_atom.type)))
+
+                if bond_types not in bond_cache:
+                    bond_dict = self.ff_attributes.get(atom1.ff_atom.type, {}).get("bond_coef", {})
+                    bond_coef = bond_dict.get(bond_types)
+                    bond_cache[bond_types] = bond_coef
+                else:
+                    bond_coef = bond_cache[bond_types]
+
+                if bond_coef:
+                    molecule.add_bond(atom1, atom2, bond_coef)
+        
+    def add_angles(self):
+        for molecule in self.molecules:
+            if len(molecule.atoms) < 3:
+                continue
+
+            atom_types_present = {atom.ff_atom.type for atom in molecule.atoms if atom.ff_atom}
+            if not any(self.ff_attributes.get(atom_type, {}).get("angle_coef") for atom_type in atom_types_present):
+                continue
+
+            processed_angles = set()
+            for first_atom, central_atom, last_atom in permutations(molecule.atoms, 3):
+                current_permutation = (id(first_atom), id(central_atom), id(last_atom))
+                if current_permutation in processed_angles:
+                    continue
+
+                processed_angles.add(current_permutation)
+                if not (molecule.is_bonded(central_atom, first_atom) and molecule.is_bonded(central_atom, last_atom)):
+                    continue
+
+                if molecule.has_angle(first_atom, central_atom, last_atom):
+                    continue
+
+                angle_key = (first_atom.ff_atom.type, central_atom.ff_atom.type, last_atom.ff_atom.type)
+                angle_dict = self.ff_attributes.get(central_atom.ff_atom.type, {}).get("angle_coef", {})
+                angle_coef = angle_dict.get(angle_key)
+                
+                if angle_coef:
+                    molecule.add_angle(first_atom, central_atom, last_atom, angle_coef)
+
+
+
+
+
+
+    
+
+                
+
+            
+
+
+
+            
+
+
+
+
+
+
+
 
     def add_torsion(self):
         pass

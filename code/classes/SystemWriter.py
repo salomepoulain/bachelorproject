@@ -2,62 +2,53 @@ from code.classes.SystemAllocator import SystemAllocator
 from code.classes.ForcefieldPartials import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef
 from code.classes.SystemPartials import Bond, Angle, Torsion, Improper
 from code.classes.UnitcellPartials import Atom, Molecule
+from code.banner_writer import print_banner
 from typing import List
 
 class SystemWriter:
-    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio):
+    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio, ff_params):
 
-        # Load system in from all other classes
-        
+        print_banner('misc/banner.txt')
+
+        # Load system in from previous classes
         self.file_name = file_name
         self.replication = replication
-        self.system = SystemAllocator(file_name, replication, height, al_mg_ratio, ca_si_ratio)
+        self.system = SystemAllocator(file_name, replication, height, al_mg_ratio, ca_si_ratio, ff_params)
 
         self.dimensions = self.system.dimensions 
-        self.atoms = self.system.atoms
-        self.molecules  = self.system.molecules
+        self.molecules = self.system.molecules
+        self.atoms = [atom for molecule in self.molecules for atom in molecule.atoms]
 
-        self.used_ff_atoms: List[FF_atom] = list(self.system.used_ff_atoms)
-        self.used_nonbond_coefs: List[FF_nonbond_coef] = list(self.system.used_nonbond_coefs)
-        self.used_bond_coefs: List[FF_bond_coef] = list(self.system.used_bond_coefs)
-        self.used_angle_coefs: List[FF_angle_coef] = list(self.system.used_angle_coefs)
-        self.used_torsion_coefs: List[FF_torsion_coef] = list(self.system.used_torsion_coefs)
-        self.used_improper_coefs: List[FF_improper_coef] = list(self.system.used_improper_coefs)
+        self.pair_coeffs = self.system.pair_coeffs
+        self.ff_atoms = list(set([atom.ff_atom for molecule in self.molecules for atom in molecule.atoms]))
 
-        self.bonds: List[Bond] = self.system.bonds
-        self.angles: List[Angle] = self.system.angles
-        self.torsions: List[Torsion] = self.system.torsions
-        self.impropers: List[Improper] = self.system.impropers
+        self.bond_coeffs = list(set([bond.ff_bond_coef for molecule in self.molecules for bond in molecule.bonds]))
+        self.angle_coeffs = list(set([angle.ff_angle_coef for molecule in self.molecules for angle in molecule.angles]))
+        self.torsion_coeffs = list(set([torsion.ff_torsion_coef for molecule in self.molecules for torsion in molecule.torsions]))
+        self.improper_coeffs = list(set([improper.ff_improper_coef for molecule in self.molecules for improper in molecule.impropers]))
 
-        self.data_file = None
+        self.bonds: List[Bond] = [bond for molecule in self.molecules for bond in molecule.bonds]
+        self.angles: List[Angle] = [angle for molecule in self.molecules for angle in molecule.angles]
+        self.torsions: List[Torsion] = [torsion for molecule in self.molecules for torsion in molecule.torsions]
+        self.impropers: List[Improper] = [improper for molecule in self.molecules for improper in molecule.impropers]
 
         # Store all in correct order
         
         self.stored_description = []
-        # atom_type, mass (used_ff_atoms)
-        self.stored_masses: List[FF_atom.id, FF_atom.mass] = []
-        # atom_type, epsilon, sigma
-        self.stored_pair_coeffs: List[FF_nonbond_coef.ff_atoms[0].id, FF_nonbond_coef.ff_atoms[1].id, FF_nonbond_coef.epsilon, FF_nonbond_coef.sigma] = []
-        # bond_type, k, r0
-        self.stored_bond_coeffs: List[FF_bond_coef.id, FF_bond_coef.k, FF_bond_coef.r0] = []
-        # angle_type, k, theta0
-        self.stored_angle_coeffs: List[FF_angle_coef.id, FF_angle_coef.k, FF_angle_coef.theta0] = []
-        # torsion_type, kphi, n, phi0
-        self.stored_torsion_coeffs: List[FF_torsion_coef.id, FF_torsion_coef.kphi, FF_torsion_coef.n, FF_torsion_coef.phi0] = []
-        # improper_type, kchi, n, chi0
-        self.stored_improper_coeffs: List[FF_improper_coef.id, FF_improper_coef.kchi, FF_improper_coef.n, FF_improper_coef.chi0] = []
+        self.stored_masses = []
+        self.stored_pair_coeffs = []
+        self.stored_bond_coeffs = []
+        self.stored_angle_coeffs = []
+        self.stored_torsion_coeffs = []
+        self.stored_improper_coeffs = []
 
-        # atom_id, molecule_id, atom_type, x, y, z, (charge)]
-        self.stored_atoms: List[Atom.id, Molecule.id, Atom.ff_atom.id, Atom.position[0], Atom.position[1], Atom.position[2], Atom.FF_atom.charge] = []
-        # bond_id, bond_type, atom1, atom2
-        self.stored_bonds: List[Bond.id, Bond.ff_bond_coef.id, Bond.atoms[0].id, Bond.atoms[1].id] = []
-        # angle_id, angle_type, atom1, atom2, atom3
-        self.stored_angles: List[Angle.id, Angle.ff_angle_coef.id, Angle.atoms[0].id, Angle.atoms[1].id, Angle.atoms[2].id] = []
-        # torsion_id, torsion_type, atom1, atom2, atom3, atom4
-        self.stored_torsions: List[Torsion.id, Torsion.ff_torsion_coef.id, Torsion.atoms[0].id, Torsion.atoms[1].id, Torsion.atoms[2].id, Torsion.atoms[3].id] = []
-        # improper_id, improper_type, atom1, atom2, atom3, atom4
-        self.stored_impropers: List[Improper.id, Improper.ff_improper_coef.id, Improper.atoms[0].id, Improper.atoms[1].id, Improper.atoms[2].id, Improper.atoms[3].id] = []
+        self.stored_atoms = []
+        self.stored_bonds = []
+        self.stored_angles = []
+        self.stored_torsions = []
+        self.stored_impropers = []
 
+        self.data_file = None
 
         # Add everything
 
@@ -84,28 +75,28 @@ class SystemWriter:
             atom.id = self.atoms.index(atom) + 1
 
     def give_bond_coeff_id(self):
-        if len(self.used_bond_coefs) == 0:
+        if len(self.bond_coeffs) == 0:
             return
-        for bond_coeff in self.used_bond_coefs:
-            bond_coeff.id = self.used_bond_coefs.index(bond_coeff) + 1
+        for bond_coeff in self.bond_coeffs:
+            bond_coeff.id = self.bond_coeffs.index(bond_coeff) + 1
 
     def give_angle_coeff_id(self):
-        if len(self.used_angle_coefs) == 0:
+        if len(self.angle_coeffs) == 0:
             return
-        for angle_coeff in self.used_angle_coefs:
-            angle_coeff.id = self.used_angle_coefs.index(angle_coeff) + 1
+        for angle_coeff in self.angle_coeffs:
+            angle_coeff.id = self.angle_coeffs.index(angle_coeff) + 1
 
     def give_torsion_coeff_id(self):
-        if len(self.used_torsion_coefs) == 0:
+        if len(self.torsion_coeffs) == 0:
             return
-        for torsion_coeff in self.used_torsion_coefs:
-            torsion_coeff.id = self.used_torsion_coefs.index(torsion_coeff) + 1
+        for torsion_coeff in self.torsion_coeffs:
+            torsion_coeff.id = self.torsion_coeffs.index(torsion_coeff) + 1
 
     def give_improper_coeff_id(self):
-        if len(self.used_improper_coefs) == 0:
+        if len(self.improper_coeffs) == 0:
             return
-        for improper_coeff in self.used_improper_coefs:
-            improper_coeff.id = self.used_improper_coefs.index(improper_coeff) + 1
+        for improper_coeff in self.improper_coeffs:
+            improper_coeff.id = self.improper_coeffs.index(improper_coeff) + 1
 
     def give_molecule_id(self):
         if len(self.molecules) == 0:
@@ -114,7 +105,7 @@ class SystemWriter:
             molecule.id = self.molecules.index(molecule) + 1
 
     def give_ff_atom_type_id(self):
-        sorted_atoms = sorted(self.used_ff_atoms, key=lambda atom: atom.mass)
+        sorted_atoms = sorted(self.ff_atoms, key=lambda atom: atom.mass)
         for index, ff_atom in enumerate(sorted_atoms, start=1):
             ff_atom.id = index
 
@@ -170,59 +161,61 @@ class SystemWriter:
             line = self.title_line_writer(item)
             self.stored_description.append(line)
 
-        self.stored_description.append(f"\n{len(self.used_ff_atoms)} atom types")
-        self.stored_description.append(f"{len(self.used_bond_coefs)} bond types")
-        self.stored_description.append(f"{len(self.used_angle_coefs)} angle types")
-        self.stored_description.append(f"{len(self.used_torsion_coefs)} dihedral types")
-        self.stored_description.append(f"{len(self.used_improper_coefs)} improper types\n")
+        self.stored_description.append(f"\n{len(self.ff_atoms)} atom types")
+        self.stored_description.append(f"{len(self.bond_coeffs)} bond types")
+        self.stored_description.append(f"{len(self.angle_coeffs)} angle types")
+        self.stored_description.append(f"{len(self.torsion_coeffs)} dihedral types")
+        self.stored_description.append(f"{len(self.improper_coeffs)} improper types\n")
 
-        self.stored_description.append(f"{self.dimensions[0][0]} {self.dimensions[0][1]} xlo xhi")
-        self.stored_description.append(f"{self.dimensions[1][0]} {self.dimensions[1][1]} ylo yhi")
-        self.stored_description.append(f"{self.dimensions[2][0]} {self.dimensions[2][1]} zlo zhi\n")
+        width = 20
+
+        self.stored_description.append(f"{self.dimensions[0][0]:<{width}} {self.dimensions[0][1]:<{width}} xlo xhi")
+        self.stored_description.append(f"{self.dimensions[1][0]:<{width}} {self.dimensions[1][1]:<{width}} ylo yhi")
+        self.stored_description.append(f"{self.dimensions[2][0]:<{width}} {self.dimensions[2][1]:<{width}} zlo zhi\n")
 
     def store_masses(self):
         self.stored_masses.append("Masses\n")
-        sorted_atoms = sorted(self.used_ff_atoms, key=lambda atom: atom.id)
+        sorted_atoms = sorted(self.ff_atoms, key=lambda atom: atom.id)
         for ff_atom in sorted_atoms:
             description = "# " + ff_atom.description
             self.stored_masses.append((ff_atom.id, ff_atom.mass, description))
 
     def store_pair_coeffs(self):
-        if len(self.used_nonbond_coefs) == 0:
+        if len(self.pair_coeffs) == 0:
             return
         
-        sorted_nonbond_coefs = sorted(self.used_nonbond_coefs, key=lambda x: x.ff_atoms.id)
+        sorted_pair_coeffs = sorted(self.pair_coeffs, key=lambda x: x.ff_atoms.id)
 
         self.stored_pair_coeffs.append("Pair Coeffs\n")
-        for nonbond_coef in sorted_nonbond_coefs:
+        for nonbond_coef in sorted_pair_coeffs:
             self.stored_pair_coeffs.append((nonbond_coef.ff_atoms.id, nonbond_coef.epsilon, nonbond_coef.sigma))
 
     def store_bond_coeffs(self):
-        if len(self.used_bond_coefs) == 0:
+        if len(self.bond_coeffs) == 0:
             return
         self.stored_bond_coeffs.append("Bond Coeffs\n")
-        for bond_coef in self.used_bond_coefs:
+        for bond_coef in self.bond_coeffs:
             self.stored_bond_coeffs.append((bond_coef.id, bond_coef.k, bond_coef.r0))
 
     def store_angle_coeffs(self):
-        if len(self.used_angle_coefs) == 0:
+        if len(self.angle_coeffs) == 0:
             return
         self.stored_angle_coeffs.append("Angle Coeffs\n")
-        for angle_coef in self.used_angle_coefs:
+        for angle_coef in self.angle_coeffs:
             self.stored_angle_coeffs.append((angle_coef.id, angle_coef.k, angle_coef.theta0))
 
     def store_dihedral_coeffs(self):
-        if len(self.used_torsion_coefs) == 0:
+        if len(self.torsion_coeffs) == 0:
             return
         self.stored_torsion_coeffs.append("Dihedral Coeffs\n")
-        for torsion_coef in self.used_torsion_coefs:
+        for torsion_coef in self.torsion_coeffs:
             self.stored_torsion_coeffs.append((torsion_coef.id, torsion_coef.kphi, torsion_coef.n, torsion_coef.phi0))
 
     def store_improper_coeffs(self):
-        if len(self.used_improper_coefs) == 0:
+        if len(self.improper_coeffs) == 0:
             return
         self.stored_improper_coeffs.append("Improper Coeffs\n")
-        for improper_coef in self.used_improper_coefs:
+        for improper_coef in self.improper_coeffs:
             self.stored_improper_coeffs.append((improper_coef.id, improper_coef.kchi, improper_coef.n, improper_coef.chi0))
 
     def store_atoms(self):
@@ -296,13 +289,6 @@ class SystemWriter:
                 self.data_file.write(formatted_line + "\n")
 
         self.data_file.write("\n")
-
-
-
-
-
-
-
 
     def write_data_file(self):
         self.data_file = open("output/" + self.file_name + str(self.replication) + ".data", "w")

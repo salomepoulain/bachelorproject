@@ -7,6 +7,14 @@ class Bond:
         self.ff_bond_coef: FF_bond_coef = None
         self.atoms: list[Atom, Atom] = None
 
+    def other_atom(self, current_atom):
+        if current_atom == self.atoms[0]:
+            return self.atoms[1]
+        elif current_atom == self.atoms[1]:
+            return self.atoms[0]
+        else:
+            return None
+
 class Angle:
     def __init__(self) -> None:
         self.id: int = None

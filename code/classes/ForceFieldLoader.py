@@ -56,6 +56,42 @@ class ForceFieldLoader:
 
             i += 1
 
+    def get_info_by_type(self, identifier: str):
+        results = {
+            "ff_atom": None,
+            "nonbond_coef": None,
+            "bond_coef": [],
+            "angle_coef": [],
+            "torsion_coef": [],
+            "improper_coef": []
+        }
+
+        for atom in self.ff_atoms:
+            if atom.type == identifier:
+                results["ff_atom"] = atom
+        
+        for nonbond in self.nonbond_coefs:
+            if nonbond.ff_atoms.type == identifier:
+                results["nonbond_coef"] = nonbond
+        
+        for bond in self.bond_coefs:
+            if any(atom.type == identifier for atom in bond.ff_atoms):
+                results["bond_coef"].append(bond)
+        
+        for angle in self.angle_coefs:
+            if any(atom.type == identifier for atom in angle.ff_atoms):
+                results["angle_coef"].append(angle)
+        
+        for torsion in self.torsion_coefs:
+            if any(atom.type == identifier for atom in torsion.ff_atoms):
+                results["torsion_coef"].append(torsion)
+        
+        for improper in self.improper_coefs:
+            if any(atom.type == identifier for atom in improper.ff_atoms):
+                results["improper_coef"].append(improper)
+        
+        return results
+
     def find_ff_atom(self, str, i):
         if i > 0 and str in self.duplicates:
             str += '[dup]'
