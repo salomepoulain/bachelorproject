@@ -87,6 +87,12 @@ class SystemAllocator:
                     angle_dict[angle_key] = angle
                 self.ff_attributes[key]["angle_coef"] = angle_dict
 
+    def preprocess_torsion_coefs(self):
+        pass
+
+    def preprocess_improper_coefs(self):
+        pass
+
     def find_min_max_z(self):
         min_z = float('inf')  
         max_z = float('-inf') 
@@ -235,27 +241,6 @@ class SystemAllocator:
                 
                 if angle_coef:
                     molecule.add_angle(first_atom, central_atom, last_atom, angle_coef)
-
-
-
-
-
-
-    
-
-                
-
-            
-
-
-
-            
-
-
-
-
-
-
 
 
     def add_torsion(self):

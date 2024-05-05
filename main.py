@@ -62,9 +62,9 @@ if __name__ == "__main__":
 
          ff_files =         ['clayff', 
                              'cvff'],
-         mg_cutoff     =    2.0,        
-         h_cutoff      =    1.0,       
-         bond_cutoff   =    1.5,      
+         mg_cutoff =        2.0,        
+         h_cutoff =         1.0,       
+         bond_cutoff =      1.5,      
 
          ff_params =        ['ao', 
                              'mgo', 
