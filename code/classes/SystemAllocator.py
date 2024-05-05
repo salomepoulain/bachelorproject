@@ -7,7 +7,7 @@ from itertools import combinations, permutations
 
 class SystemAllocator:
     def __init__(self,
-                 input_file,
+                input_file,
                 replication,
                 height,
                 al_mg_ratio,
@@ -40,8 +40,6 @@ class SystemAllocator:
 
         self.preprocess_all()
 
-        self.pair_coeffs = []
-
         self.allocate_ff_atoms()
         self.allocate_bonds()
 
@@ -61,7 +59,6 @@ class SystemAllocator:
         self.preprocess_angle_coefs()
 
     def allocate_bonds(self):
-        self.add_pair_coefficients()
         self.add_bonds()
         self.add_angles()
         self.add_torsion()
@@ -176,11 +173,6 @@ class SystemAllocator:
                         atom.ff_atom = self.ff_attributes["o*"]["ff_atom"]
                     if atom.element == "H":
                         atom.ff_atom = self.ff_attributes["h*"]["ff_atom"]
-    
-    def add_pair_coefficients(self):
-        used_ff = set([atom.ff_atom.type for molecule in self.molecules for atom in molecule.atoms])
-        for ff_type in used_ff:
-            self.pair_coeffs.append(self.ff_attributes[ff_type]["nonbond_coef"])
 
     def add_bonds(self):
         for molecule in self.molecules:

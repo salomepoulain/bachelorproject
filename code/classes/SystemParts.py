@@ -121,9 +121,11 @@ class FF_atom:
         self.mass: float = None
         self.charge: float = None
 
-class FF_nonbond_coef:
+        self.ff_pair_coef: FF_pair_coef = None
+
+class FF_pair_coef:
     def __init__(self) -> None:
-        self.ff_atoms: FF_atom = None
+        self.ff_atom: FF_atom = None
         self.epsilon = None
         self.sigma = None
 
@@ -160,7 +162,7 @@ class FF_improper_coef:
 class FF_equivalence:
     def __init__(self) -> None:
         self.ff_atom: FF_atom = None
-        self.nonbond_coef: FF_atom = None
+        self.pair_coef: FF_atom = None
         self.bond_coef: FF_atom = None
         self.angle_coef: FF_atom = None
         self.torsion_coef: FF_atom  = None

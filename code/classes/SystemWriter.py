@@ -21,8 +21,6 @@ class SystemWriter:
     
         # Load system in from previous classes
 
-        self.input_file = input_file
-        self.replication = replication
         self.system = SystemAllocator(input_file,
                                         replication,
                                         height,
@@ -37,13 +35,28 @@ class SystemWriter:
                                         h_cutoff,
                                         bond_cutoff,
                                         ff_params)
+        
+        self.input_file = input_file
+        self.replication = replication
+        self.height = height
+        self.al_mg_ratio = al_mg_ratio
+        self.ca_si_ratio = ca_si_ratio
+        self.water_file = water_file
+        self.vdw_radii_file = vdw_radii_file
+        self.vdw_def_radius = vdw_def_radius
+        self.vdw_def_scale = vdw_def_scale
+        self.ff_files = ff_files
+        self.mg_cutoff = mg_cutoff
+        self.h_cutoff = h_cutoff
+        self.bond_cutoff = bond_cutoff
+        self.ff_params = ff_params
 
         self.dimensions = self.system.dimensions 
         self.molecules = self.system.molecules
         self.atoms = [atom for molecule in self.molecules for atom in molecule.atoms]
 
-        self.pair_coeffs = self.system.pair_coeffs
         self.ff_atoms = list(set([atom.ff_atom for molecule in self.molecules for atom in molecule.atoms]))
+        # self.pair_coeffs = list(set([ff_atom.ff_pair_coef for ff_atom in self.ff_atoms]))
 
         self.bond_coeffs = list(set([bond.ff_bond_coef for molecule in self.molecules for bond in molecule.bonds]))
         self.angle_coeffs = list(set([angle.ff_angle_coef for molecule in self.molecules for angle in molecule.angles]))
@@ -174,10 +187,50 @@ class SystemWriter:
         attribute = getattr(self, item, [])
         amount = len(attribute)
         return f"{amount} {item}"
+    
+    def generate_header(self):
+        extra_spaces = 4 
+        labels = [
+            "Input file", "Replication", "Interlayer height (A)", "Al/Mg Ratio",
+            "Ca/Si Ratio", "Water file used", "vdW radii file", "Default vdW radius",
+            "Default vdW scale", "Force fields used", "Mg cutoff distance", "H cutoff distance",
+            "Bond cutoff distance", "Force field parameters"
+        ]
+        max_label_length = max(len(label) for label in labels) + extra_spaces
+        header = [
+            "# --------------------------------------------------------------",
+            "# Generated DATA file using 'LAMMPS MT DATA FILE GENERATOR'",
+            "#",
+            f"# {'Input file:'.ljust(max_label_length)} {self.input_file}",
+            f"# {'Replication:'.ljust(max_label_length)} {self.replication[0]}x{self.replication[1]}",
+            f"# {'Interlayer height:'.ljust(max_label_length)} {self.height} Angstroms",
+            f"# {'Al/Mg Ratio:'.ljust(max_label_length)} {self.al_mg_ratio}",
+            f"# {'Ca/Si Ratio:'.ljust(max_label_length)} {self.ca_si_ratio}",
+            f"# {'Water file used:'.ljust(max_label_length)} {self.water_file}",
+            f"# {'vdW radii file:'.ljust(max_label_length)} {self.vdw_radii_file}",
+            f"# {'Default vdW radius:'.ljust(max_label_length)} {self.vdw_def_radius}",
+            f"# {'Default vdW scale:'.ljust(max_label_length)} {self.vdw_def_scale}",
+            f"# {'Force fields used:'.ljust(max_label_length)} {', '.join(self.ff_files)}",
+            f"# {'Mg cutoff distance:'.ljust(max_label_length)} {self.mg_cutoff} Angstroms",
+            f"# {'H cutoff distance:'.ljust(max_label_length)} {self.h_cutoff} Angstroms",
+            f"# {'Bond cutoff distance:'.ljust(max_label_length)} {self.bond_cutoff} Angstroms",
+            "# Force field parameters:"
+        ]
+
+        params_start = max_label_length + 2
+
+        for param in self.ff_params:
+            header.append(f"#{' ':<{params_start}}- {param}")
+
+        header.append("# --------------------------------------------------------------")
+        return "\n".join(header) + "\n"
+
 
     def store_description(self):
-        dimensions = " " + str(self.replication[0]) + " by " + str(self.replication[1]) + " replicated"
-        self.stored_description.append("Generated DATA file using OOP: " + self.input_file + ".xyz" + dimensions + "\n")
+        #dimensions = " " + str(self.replication[0]) + " by " + str(self.replication[1]) + " replicated"
+        #self.stored_description.append("Generated DATA file using OOP: " + self.input_file + ".xyz" + dimensions + "\n")
+
+        self.stored_description.append(self.generate_header())
 
         items = ["atoms", "bonds", "angles", "dihedrals", "impropers"]
         for item in items:
@@ -204,14 +257,10 @@ class SystemWriter:
             self.stored_masses.append((ff_atom.id, ff_atom.mass, description))
 
     def store_pair_coeffs(self):
-        if len(self.pair_coeffs) == 0:
-            return
-        
-        sorted_pair_coeffs = sorted(self.pair_coeffs, key=lambda x: x.ff_atoms.id)
-
         self.stored_pair_coeffs.append("Pair Coeffs\n")
-        for nonbond_coef in sorted_pair_coeffs:
-            self.stored_pair_coeffs.append((nonbond_coef.ff_atoms.id, nonbond_coef.epsilon, nonbond_coef.sigma))
+        sorted_atoms = sorted(self.ff_atoms, key=lambda atom: atom.id)
+        for ff_atom in sorted_atoms:
+            self.stored_pair_coeffs.append((ff_atom.id, ff_atom.ff_pair_coef.epsilon, ff_atom.ff_pair_coef.sigma))
 
     def store_bond_coeffs(self):
         if len(self.bond_coeffs) == 0:

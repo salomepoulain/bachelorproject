@@ -60,7 +60,8 @@ if __name__ == "__main__":
          vdw_def_scale =     5.70,          # helping to achieve a density close to 1000 g/l for proteins
                                             # ^ this is to be changed.
 
-         ff_files =         ['clayff', 'cvff'],
+         ff_files =         ['clayff', 
+                             'cvff'],
          mg_cutoff     =    2.0,        
          h_cutoff      =    1.0,       
          bond_cutoff   =    1.5,      

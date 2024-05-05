@@ -4,18 +4,18 @@ Force Field Loader Module for Molecular Dynamics Simulations
 Description:
     This module provides classes and functions to load, manage, and process
     force field parameters from specified file paths within 'forcefields/' directory.
-    It uses the FF_atom, FF_nonbond_coef, FF_bond, FF_angle, FF_torsion, FF_improper, and FF_equivalence classes 
+    It uses the FF_atom, FF_pair_coef, FF_bond, FF_angle, FF_torsion, FF_improper, and FF_equivalence classes 
     - loads cvff data from clayff and cvff forcefields in .frc files
     - also works with only one file
-    - loads atom types, equivalences, nonbond_coef, bond_coef, angle_coef, torsion_coef, improper_coef parameters
-    - nonbond_coef parameters are converted to give sigma and epsilon values
+    - loads atom types, equivalences, pair_coef, bond_coef, angle_coef, torsion_coef, improper_coef parameters
+    - pair_coef parameters are converted to give sigma and epsilon values
     - 2k values are devided by 2 to get k values
     - cvff equivalences are used to ensure all atom types are represented in the force field parameters
-    - checks for duplicate atom types and appends '[dup]' to the type if a duplicate is found, 
+    - checks for duplicate atom types and appends '[dup_#]' to the type if a duplicate is found, 
         with the second file iteration. FF_atom.type are thus unique identifiers
     - for torsion_coefs, '*' is used to represent a wildcard atom type
 """
-from code.classes.SystemParts import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef, FF_equivalence
+from code.classes.SystemParts import FF_atom, FF_pair_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef, FF_equivalence
 from typing import List, Set
 
 
@@ -24,7 +24,7 @@ class ForceFieldLoader:
         self.ff_files = [f"forcefields/{name}.frc" for name in ff_files]
         self.ff_atoms: List[FF_atom] = []
         self.ff_equivalences: List[FF_equivalence] = []
-        self.nonbond_coefs: List[FF_nonbond_coef] = []
+        self.pair_coefs: List[FF_pair_coef] = []
         self.bond_coefs: List[FF_bond_coef] = []
         self.angle_coefs: List[FF_angle_coef] = []
         self.torsion_coefs: List[FF_torsion_coef] = []
@@ -39,8 +39,9 @@ class ForceFieldLoader:
             self.read_ff_atom_types(file_path, i)
             self.read_ff_equivalences(file_path, i)
 
-            self.read_ff_nonbond_coef(file_path, i)
-            self.add_nonbond_coef_equivalences()
+            self.read_ff_pair_coef(file_path, i)
+            self.add_pair_coef_equivalences()
+            self.add_pair_coefs_for_ff_types()
 
             self.read_ff_bond(file_path, i)
             self.add_bond_equivalences()
@@ -59,7 +60,7 @@ class ForceFieldLoader:
     def get_info_by_type(self, identifier: str):
         results = {
             "ff_atom": None,
-            "nonbond_coef": None,
+            "pair_coef": None,
             "bond_coef": [],
             "angle_coef": [],
             "torsion_coef": [],
@@ -70,9 +71,9 @@ class ForceFieldLoader:
             if atom.type == identifier:
                 results["ff_atom"] = atom
         
-        for nonbond in self.nonbond_coefs:
-            if nonbond.ff_atoms.type == identifier:
-                results["nonbond_coef"] = nonbond
+        for pair_coef in self.pair_coefs:
+            if pair_coef.ff_atom.type == identifier:
+                results["pair_coef"] = pair_coef
         
         for bond in self.bond_coefs:
             if any(atom.type == identifier for atom in bond.ff_atoms):
@@ -94,7 +95,7 @@ class ForceFieldLoader:
 
     def find_ff_atom(self, str, i):
         if i > 0 and str in self.duplicates:
-            str += '[dup]'
+            str += f'[dup{i}]'
 
         if str == '*':
             ff_atom = FF_atom()
@@ -144,7 +145,7 @@ class ForceFieldLoader:
                     existing_types = {ff_atom.type for ff_atom in self.ff_atoms}
                     if ff_atom.type in existing_types:
                         self.duplicates.add(ff_atom.type)
-                        ff_atom.type += '[dup]'
+                        ff_atom.type += f'[dup{i}]'
                     
                     self.ff_atoms.append(ff_atom)
 
@@ -165,7 +166,7 @@ class ForceFieldLoader:
 
                     ff_equivalence = FF_equivalence()
                     ff_equivalence.ff_atom = self.find_ff_atom(parts[2], i)
-                    ff_equivalence.nonbond_coef = self.find_ff_atom(parts[3], i)
+                    ff_equivalence.pair_coef = self.find_ff_atom(parts[3], i)
                     ff_equivalence.bond_coef = self.find_ff_atom(parts[4], i)
                     ff_equivalence.angle_coef = self.find_ff_atom(parts[5], i)
                     ff_equivalence.torsion_coef = self.find_ff_atom(parts[6], i)
@@ -174,7 +175,7 @@ class ForceFieldLoader:
                     if ff_equivalence.ff_atom is not None:
                         self.ff_equivalences.append(ff_equivalence)
 
-    def read_ff_nonbond_coef(self, file_path, i):
+    def read_ff_pair_coef(self, file_path, i):
 
         def calculate_sigma_epsilon(A, B):
             if A == 0 or B == 0:
@@ -198,12 +199,12 @@ class ForceFieldLoader:
                     continue
                 if start_processing:
                     parts = line.strip().split()
-                    ff_nonbond_coef = FF_nonbond_coef()
-                    ff_nonbond_coef.ff_atoms = self.find_ff_atom(parts[2], i)
+                    ff_pair_coef = FF_pair_coef()
+                    ff_pair_coef.ff_atom = self.find_ff_atom(parts[2], i)
                     A, B = float(parts[3]), float(parts[4])
-                    ff_nonbond_coef.sigma, ff_nonbond_coef.epsilon = calculate_sigma_epsilon(A, B)
+                    ff_pair_coef.sigma, ff_pair_coef.epsilon = calculate_sigma_epsilon(A, B)
                     
-                    self.nonbond_coefs.append(ff_nonbond_coef)
+                    self.pair_coefs.append(ff_pair_coef)
 
     def read_ff_bond(self, file_path, i):
         start_processing = False
@@ -305,23 +306,23 @@ class ForceFieldLoader:
                     self.improper_coefs.append(ff_improper)
     
 
-    def add_nonbond_coef_equivalences(self):
+    def add_pair_coef_equivalences(self):
         equivalences = [equivalence for equivalence in self.ff_equivalences]
-        non_bonds = [nonbond_coef.ff_atoms for nonbond_coef in self.nonbond_coefs]
+        non_bonds = [pair_coef.ff_atom for pair_coef in self.pair_coefs]
 
         for equivalence in equivalences:
             if equivalence.ff_atom not in non_bonds:
-                new_ff_nonbond_coef = FF_nonbond_coef()
-                new_ff_nonbond_coef.ff_atoms = equivalence.ff_atom
+                new_ff_pair_coef = FF_pair_coef()
+                new_ff_pair_coef.ff_atom = equivalence.ff_atom
                 
-                for nonbond_coef in self.nonbond_coefs:
-                    if equivalence.nonbond_coef == nonbond_coef.ff_atoms:
-                        new_ff_nonbond_coef.epsilon = nonbond_coef.epsilon
-                        new_ff_nonbond_coef.sigma = nonbond_coef.sigma
+                for pair_coef in self.pair_coefs:
+                    if equivalence.pair_coef == pair_coef.ff_atom:
+                        new_ff_pair_coef.epsilon = pair_coef.epsilon
+                        new_ff_pair_coef.sigma = pair_coef.sigma
                         break
 
-                if new_ff_nonbond_coef.sigma is not None and new_ff_nonbond_coef.epsilon is not None:  
-                    self.nonbond_coefs.append(new_ff_nonbond_coef)
+                if new_ff_pair_coef.sigma is not None and new_ff_pair_coef.epsilon is not None:  
+                    self.pair_coefs.append(new_ff_pair_coef)
             
     def add_bond_equivalences(self):
         equivalences = [equivalence for equivalence in self.ff_equivalences]
@@ -439,114 +440,14 @@ class ForceFieldLoader:
             if new_ff_improper.ff_atoms:
                 self.improper_coefs.append(new_ff_improper)
 
-
-        seen_angles = set()
-        duplicates = False
-
-        for angle_coef in self.angle_coefs:
-            if len(angle_coef.ff_atoms) == 3:
-                ordered_atoms = (angle_coef.ff_atoms[0].type, angle_coef.ff_atoms[1].type, angle_coef.ff_atoms[2].type)
-
-                if ordered_atoms in seen_angles:
-                    #print(f"Duplicate angle_coef found between atoms {ordered_atoms[0]}, {ordered_atoms[1]}, and {ordered_atoms[2]}")
-                    duplicates = True
-                else:
-                    seen_angles.add(ordered_atoms)
-
-def test_forcefield_params():
-    # Create an instance of the ForceFieldLoader
-    ff_params = ForceFieldLoader()
-
-    # Check if any atom types have been loaded
-    if len(ff_params.ff_atoms) > 0:
-        print(f"###################Successfully loaded {len(ff_params.ff_atoms)} atom types:")
-        for atom in ff_params.ff_atoms:
-            print(atom)
-    else:
-        print("No atom types were loaded. Check file paths and file content.")
-
-    # Check if any nonbond_coef parameters have been loaded
-    if len(ff_params.nonbond_coefs) > 0:
-        print(f"###################Successfully loaded {len(ff_params.nonbond_coefs)} nonbond_coef parameters:")
-        for nonbond_coef in ff_params.nonbond_coefs:
-            print(f"Types: {nonbond_coef.ff_atoms.type}, Epsilon: {nonbond_coef.epsilon}, Sigma: {nonbond_coef.sigma}")
-    else:
-        print("No nonbond_coef parameters were loaded.")
-
-    # Check if any bond_coef parameters have been loaded
-    if len(ff_params.bond_coefs) > 0:
-        print(f"###################Successfully loaded {len(ff_params.bond_coefs)} bond_coef parameters:")
-        for bond_coef in ff_params.bond_coefs:
-            if bond_coef.ff_atoms:
-                # Using a list comprehension to extract 'type' from each atom in the list
-                atom_types = ', '.join(atom.type for atom in bond_coef.ff_atoms if atom is not None)
-                print(f"Types: {atom_types}, K: {bond_coef.k}, R0: {bond_coef.r0}")
-            else:
-                print("Warning: No atoms found in this bond_coef.")
-    else:
-        print("No bond_coef parameters were loaded.")
-
-    # Check if any angle_coef parameters have been loaded
-    if len(ff_params.angle_coefs) > 0:
-        print(f"###################Successfully loaded {len(ff_params.angle_coefs)} angle_coef parameters:")
-        for angle_coef in ff_params.angle_coefs:
-            if angle_coef.ff_atoms:
-                atom_types = ', '.join(atom.type for atom in angle_coef.ff_atoms if atom is not None)
-                print(f"Types: {atom_types}, K: {angle_coef.k}, Theta0: {angle_coef.theta0}")
-            else:
-                print("Warning: No atoms found in this angle_coef.")
-    else:
-        print("No angle_coef parameters were loaded.")
-
-    # Check if any torsion_coef parameters have been loaded
-    if len(ff_params.torsion_coefs) > 0:
-        print(f"###################Successfully loaded {len(ff_params.torsion_coefs)} torsion_coef parameters:")
-        for torsion_coef in ff_params.torsion_coefs:
-            if torsion_coef.ff_atoms:
-                atom_types = ', '.join(atom.type for atom in torsion_coef.ff_atoms if atom is not None)
-                print(f"Types: {atom_types}, Kphi: {torsion_coef.kphi}, N: {torsion_coef.n}, Phi0: {torsion_coef.phi0}")
-            else:
-                print("Warning: No atoms found in this torsion_coef.")
-    else:
-        print("No torsion_coef parameters were loaded.")
-
-    # Check if any improper_coef parameters have been loaded
-    if len(ff_params.improper_coefs) > 0:
-        print(f"###################Successfully loaded {len(ff_params.improper_coefs)} improper_coef parameters:")
-        for improper_coef in ff_params.improper_coefs:
-            if improper_coef.ff_atoms:
-                atom_types = ', '.join(atom.type for atom in improper_coef.ff_atoms if atom is not None)
-                print(f"Types: {atom_types}, Kchi: {improper_coef.kchi}, N: {improper_coef.n}, Chi0: {improper_coef.chi0}")
-            else:
-                print("Warning: No atoms found in this improper_coef.")
-    else:
-        print("No improper_coef parameters were loaded.")
-
-    # Print the equivalence parameters to the console for verification
-    if ff_params.ff_equivalences:
-        print(f"################### Successfully loaded {len(ff_params.ff_equivalences)} equivalence parameters:")
-        for equivalence in ff_params.ff_equivalences:
-            print(f"FF Atom: {equivalence.ff_atom.type}, "
-                f"nonbond_coef: {equivalence.nonbond_coef.type}, "
-                f"bond_coef: {equivalence.bond_coef.type}, "
-                f"angle_coef: {equivalence.angle_coef.type}, "
-                f"torsion_coef: {equivalence.torsion_coef.type}, "
-                f"improper_coef: {equivalence.improper_coef.type}")
-    else:
-        print("No equivalence parameters were loaded.")
+    def add_pair_coefs_for_ff_types(self):
+        for ff_atom in self.ff_atoms:
+            for pair_coef in self.pair_coefs:
+                if pair_coef.ff_atom == ff_atom:
+                    ff_atom.ff_pair_coef = pair_coef
+                    break
+            
+            
 
 
-    if len(ff_params.duplicates) > 0:
-        print(f"{len(ff_params.duplicates)} Detected duplicate atom types:")
-        for duplicate_type in ff_params.duplicates:
-            # Print all atoms that have the duplicated type
-            for atom in ff_params.ff_atoms:
-                if atom.type == duplicate_type:
-                    print(f"Duplicate Type: {atom.type}, Description: {atom.description}")
-    else:
-        print("No duplicates detected.")
-
- 
-# Call the test function
-# test_forcefield_params()
 
