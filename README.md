@@ -19,7 +19,7 @@
 (_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)
 ```
 
-# LAMMPS MT DATA FILE GENERATOR FOR BACHELORPROJECT
+# LAMMPS MT DATA FILE GENERATOR FOR BACHELORPROJECT 2024
 
 Understanding clays, namely smectites, can might give insight into the origin of life. It has been shown that amino acid may adsorb to the surface area of the clay within the interlayer space, particulary on Montmorrilonite (MT). Molecular Dynamic simulations can give greater insight. A forcefield called 'CLAYFF' works particulary well for clay simulations, and works together with CVFF. This forcefield requires LAMMPS to run the simulation. For this simulation to be ran, a .DATA file is necessary, storing all information and parameters of the required system. Using an Object Oriented approach with python, this code helps to easily generate a .DATA file, with various parameters and options.
 
@@ -124,10 +124,10 @@ if __name__ == "__main__":
 #### .DATA file vizualised in ovito
 
 <div align="center">
-    <img src="misc/ovito.png" alt="OVITO visualisation 2x2 system" width="600"/>
+    <img src="misc/ovito.png" alt="OVITO visualisation 2x2 system" width="1000"/>
 </div>
 
-### .DATA file as text
+#### .DATA file as text
 
 ```
 # --------------------------------------------------------------
