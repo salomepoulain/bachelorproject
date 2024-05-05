@@ -1,4 +1,19 @@
-"""
+"""                              
+ _        _    __  __ __  __ ____  ____    __  __ _____  
+| |      / \  |  \/  |  \/  |  _ \/ ___|  |  \/  |_   _| 
+| |     / _ \ | |\/| | |\/| | |_) \___ \  | |\/| | | |   
+| |___ / ___ \| |  | | |  | |  __/ ___) | | |  | | | |   
+|_____/_/_  \_\_|  |_|_|  |_|_| __|____/  |_|__|_| |_|   
+|  _ \  / \|_   _|/ \    |  ___|_ _| |   | ____|         
+| | | |/ _ \ | | / _ \   | |_   | || |   |  _|           
+| |_| / ___ \| |/ ___ \  |  _|  | || |___| |___          
+|____/_/___\_\_/_/ __\_\ |_|_  |___|_____|_____| ____    
+ / ___| ____| \ | | ____|  _ \    / \|_   _/ _ \|  _ \   
+| |  _|  _| |  \| |  _| | |_) |  / _ \ | || | | | |_) |  
+| |_| | |___| |\  | |___|  _ <  / ___ \| || |_| |  _ <   
+ \____|_____|_| \_|_____|_| \_\/_/   \_\_| \___/|_| \_\  
+ author:  Salomé Poulain (2024)
+
 USAGE:
     python main.py <replication number>
     write the replication number as an integer
@@ -25,17 +40,19 @@ Note:
     Adding ff parameters requires knowledge about the system and manually finding the correct type in the force field file(s)
     Duplicate ff_types will be called "{ff_type}[dup]" for the second instance
     A manual check for the .data file is recommended to ensure that the correct parameters are allocated to the atoms
+
+README.md contains all information about
 """
 
 from code.main_runner import main
 
 
 if __name__ == "__main__":
-    main(input_file =       'STx_prot',
+    main(input_file =       'STx_prot',     # Contains protonated unit cell from www.charmm-gui.org [1]
          replication =      (4,4), 
          height =           30,
-         al_mg_ratio =      7.1702509,      # Based on STx1b data (Castellini 2017)
-         ca_si_ratio =      0.055125,       # Based on STx1b data (Castellini 2017)
+         al_mg_ratio =      7.1702509,      # Based on STx1b data (Castellini 2017) [2]
+         ca_si_ratio =      0.055125,       # Based on STx1b data (Castellini 2017) [2]
          
          water_file =       'spc216',
          vdw_radii_file =   'vdwradaii',
@@ -58,8 +75,11 @@ if __name__ == "__main__":
                              'oh', 
                              'Ca', 
                              'o*',          # SPC water model
-                             'h*'])         # SPC water model
+                             'h*'           # SPC water model
+                             
+                            ])             
 
 """
-https://link.springer.com/article/10.1346/CCMN.2017.064065 (Casteleinni 2017)
+[1] https://www.charmm-gui.org/?doc=input
+[2] https://link.springer.com/article/10.1346/CCMN.2017.064065 (Casteleinni 2017)
 """

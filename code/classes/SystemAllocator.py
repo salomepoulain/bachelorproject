@@ -45,10 +45,27 @@ class SystemAllocator:
         self.allocate_ff_atoms()
         self.allocate_bonds()
 
+
+    def allocate_ff_atoms(self):
+        """
+        THESE FUNCTIONS ARE MANUALLY ADDED AND HARDCODED.
+        SYSTEM DEPENDENT
+        """
+        self.add_clay_ff()
+        self.add_clay_ff_oxygens()
+        self.add_solvent()
+        self.add_ions()
+
     def preprocess_all(self):
         self.preprocess_bond_coefs()
         self.preprocess_angle_coefs()
 
+    def allocate_bonds(self):
+        self.add_pair_coefficients()
+        self.add_bonds()
+        self.add_angles()
+        self.add_torsion()
+        self.add_improper()
 
     def preprocess_bond_coefs(self):
         for key, attributes in self.ff_attributes.items():
@@ -87,9 +104,6 @@ class SystemAllocator:
                             max_z = z_position
         return min_z, max_z
     
-    '''
-    Helper function to calculate the distance between two atoms
-    '''
     def distance(self, atom1, atom2):
         normal_distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(atom1.position, atom2.position)))
 
@@ -103,19 +117,6 @@ class SystemAllocator:
         pbc_distance = math.sqrt(sum(pbc_distance))
         min_distance = min(normal_distance, pbc_distance)
         return min_distance
-
-    def allocate_ff_atoms(self):
-        self.add_clay_ff()
-        self.add_clay_ff_oxygens()
-        self.add_solvent()
-        self.add_ions()
-
-    def allocate_bonds(self):
-        self.add_pair_coefficients()
-        self.add_bonds()
-        self.add_angles()
-        self.add_torsion()
-        self.add_improper()
 
     def add_clay_ff(self):
         for molecule in self.molecules:
