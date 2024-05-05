@@ -1,6 +1,3 @@
-from code.classes.ForcefieldPartials import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef, FF_equivalence
-from typing import List, Set
-
 """
 Force Field Loader Module for Molecular Dynamics Simulations
 
@@ -18,10 +15,13 @@ Description:
         with the second file iteration. FF_atom.type are thus unique identifiers
     - for torsion_coefs, '*' is used to represent a wildcard atom type
 """
+from code.classes.SystemParts import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef, FF_equivalence
+from typing import List, Set
+
 
 class ForceFieldLoader:
-    def __init__(self) -> None:
-        self.file_paths = ['forcefields/clayff.frc', 'forcefields/cvff.frc']
+    def __init__(self, ff_files) -> None:
+        self.ff_files = [f"forcefields/{name}.frc" for name in ff_files]
         self.ff_atoms: List[FF_atom] = []
         self.ff_equivalences: List[FF_equivalence] = []
         self.nonbond_coefs: List[FF_nonbond_coef] = []
@@ -35,7 +35,7 @@ class ForceFieldLoader:
 
     def load_all_forcefield_params(self):
         i = 0
-        for file_path in self.file_paths:
+        for file_path in self.ff_files:
             self.read_ff_atom_types(file_path, i)
             self.read_ff_equivalences(file_path, i)
 

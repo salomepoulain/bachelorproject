@@ -1,19 +1,42 @@
 from code.classes.SystemAllocator import SystemAllocator
-from code.classes.ForcefieldPartials import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef
-from code.classes.SystemPartials import Bond, Angle, Torsion, Improper
-from code.classes.UnitcellPartials import Atom, Molecule
-from code.banner_writer import print_banner
+from code.classes.SystemParts import Bond, Angle, Torsion, Improper
 from typing import List
 
 class SystemWriter:
-    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio, ff_params):
-
-        print_banner('misc/banner.txt')
-
+    def __init__(self,
+                input_file,
+                replication,
+                height,
+                al_mg_ratio,
+                ca_si_ratio,
+                water_file,
+                vdw_radii_file,
+                vdw_def_radius,
+                vdw_def_scale,
+                ff_files,
+                mg_cutoff,
+                h_cutoff,
+                bond_cutoff,
+                ff_params):
+    
         # Load system in from previous classes
-        self.file_name = file_name
+
+        self.input_file = input_file
         self.replication = replication
-        self.system = SystemAllocator(file_name, replication, height, al_mg_ratio, ca_si_ratio, ff_params)
+        self.system = SystemAllocator(input_file,
+                                        replication,
+                                        height,
+                                        al_mg_ratio,
+                                        ca_si_ratio,
+                                        water_file,
+                                        vdw_radii_file,
+                                        vdw_def_radius,
+                                        vdw_def_scale,
+                                        ff_files,
+                                        mg_cutoff,
+                                        h_cutoff,
+                                        bond_cutoff,
+                                        ff_params)
 
         self.dimensions = self.system.dimensions 
         self.molecules = self.system.molecules
@@ -50,7 +73,7 @@ class SystemWriter:
 
         self.data_file = None
 
-        # Add everything
+        # Add and write all data to file
 
         self.give_all_ids()
         self.store_all()
@@ -154,7 +177,7 @@ class SystemWriter:
 
     def store_description(self):
         dimensions = " " + str(self.replication[0]) + " by " + str(self.replication[1]) + " replicated"
-        self.stored_description.append("Generated DATA file using OOP: " + self.file_name + ".xyz" + dimensions + "\n")
+        self.stored_description.append("Generated DATA file using OOP: " + self.input_file + ".xyz" + dimensions + "\n")
 
         items = ["atoms", "bonds", "angles", "dihedrals", "impropers"]
         for item in items:
@@ -258,7 +281,6 @@ class SystemWriter:
         if len(section) == 0:
             return
 
-        # Function to calculate width of each column
         def calculate_column_widths(section):
             column_widths = [0] * len(section[0])
             for line in section:
@@ -270,10 +292,8 @@ class SystemWriter:
                             column_widths[i] = max(column_widths[i], len(str(item)))
             return column_widths
 
-        # Get column widths
         column_widths = calculate_column_widths(section)
 
-        # Write section to file with formatted numbers
         for line in section:
             if all(isinstance(item, str) for item in line):
                 self.data_file.write(line + "\n")
@@ -291,7 +311,7 @@ class SystemWriter:
         self.data_file.write("\n")
 
     def write_data_file(self):
-        self.data_file = open("output/" + self.file_name + str(self.replication) + ".data", "w")
+        self.data_file = open("output/" + self.input_file + str(self.replication) + ".data", "w")
         self.write_section(self.stored_description)
         
         self.write_section(self.stored_masses)
@@ -308,6 +328,7 @@ class SystemWriter:
         self.write_section(self.stored_torsions)
         self.write_section(self.stored_impropers)
         self.data_file.close()
+
 
     
 

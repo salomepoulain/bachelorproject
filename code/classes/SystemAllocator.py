@@ -1,23 +1,37 @@
-from code.classes.ForcefieldPartials import FF_atom, FF_nonbond_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef
+from code.classes.SystemParts import Molecule
+from code.classes.SystemBuilder import SystemBuilder
 from code.classes.ForceFieldLoader import ForceFieldLoader
-from code.classes.UnitcellPartials import Molecule, Atom
-from code.classes.UnitcellBuilder import UnitcellBuilder
-from code.classes.SystemPartials import Bond, Angle, Torsion, Improper
-from typing import List, Set
+from typing import List
 import math
 from itertools import combinations, permutations
 
-
-
 class SystemAllocator:
-    def __init__(self, file_name, replication, height, al_mg_ratio, ca_si_ratio, ff_params) -> None:
+    def __init__(self,
+                 input_file,
+                replication,
+                height,
+                al_mg_ratio,
+                ca_si_ratio,
+                water_file,
+                vdw_radii_file,
+                vdw_def_radius,
+                vdw_def_scale,
+                ff_files,
+                mg_cutoff,
+                h_cutoff,
+                bond_cutoff,
+                ff_params):
 
-        self.unitcell = UnitcellBuilder(file_name, replication, height, al_mg_ratio, ca_si_ratio)
-        self.dimensions = self.unitcell.dimensions
-        self.molecules: List[Molecule] = self.unitcell.molecules
+        self.system = SystemBuilder(input_file, replication, height, al_mg_ratio, ca_si_ratio, water_file, vdw_radii_file, vdw_def_radius, vdw_def_scale)
+        self.dimensions = self.system.dimensions
+        self.molecules: List[Molecule] = self.system.molecules
 
-        self.forcefieldloader = ForceFieldLoader()
+        self.forcefieldloader = ForceFieldLoader(ff_files)
         self.params = ff_params
+
+        self.mg_cutoff = mg_cutoff
+        self.h_cutoff = h_cutoff
+        self.bond_cutoff = bond_cutoff
 
         self.ff_attributes = {}
         for ff_type in self.params:
@@ -25,10 +39,6 @@ class SystemAllocator:
             self.ff_attributes[ff_type] = dictionary
 
         self.preprocess_all()
-
-        self.distance_threshold_mg = 2.0
-        self.distance_threshold_h = 1.0
-        self.bond_cutoff = 1.5
 
         self.pair_coeffs = []
 
@@ -145,8 +155,8 @@ class SystemAllocator:
                 for row in range(4):
                     if height_dictionary[row]:  
                         for oxygen_atom in height_dictionary[row]:
-                            close_to_magnesium = any(atom.element == "Mg" and self.distance(oxygen_atom, atom) <= self.distance_threshold_mg for atom in molecule.atoms)
-                            close_to_hydrogen = any(atom.element == "H" and self.distance(oxygen_atom, atom) <= self.distance_threshold_h for atom in molecule.atoms)
+                            close_to_magnesium = any(atom.element == "Mg" and self.distance(oxygen_atom, atom) <= self.mg_cutoff for atom in molecule.atoms)
+                            close_to_hydrogen = any(atom.element == "H" and self.distance(oxygen_atom, atom) <= self.h_cutoff for atom in molecule.atoms)
                             ff_type = 'ob' if row in [0, 3] else ('ohs' if close_to_magnesium and close_to_hydrogen else 'obos' if close_to_magnesium else 'oh' if close_to_hydrogen else 'ob')
                             
                             oxygen_atom.ff_atom = self.ff_attributes[ff_type]["ff_atom"]

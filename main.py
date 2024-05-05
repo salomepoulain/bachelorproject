@@ -1,40 +1,65 @@
-from code.classes.SystemWriter import SystemWriter
+"""
+USAGE:
+    python main.py <replication number>
+    write the replication number as an integer
+    if no replication number is provided, the default value is in this file
 
-'''
-HARD CODED VALUES
+The main function is called with the following parameters:
+    - file_name: the name of the input unit cell file
+    - replication: a tuple with the replication factor in x and y
+    - height: the height of the system in Angstrom
+    - al_mg_ratio: the Al/Mg ratio in the system
+    - ca_si_ratio: the Ca/Si ratio in the system
+    - water_file: the name of the water model file
+    - vdw_radii_file: the name of the Van der Waals radii file
+    - vdw_def_radius: the default Van der Waals radius
+    - vdw_def_scale: the default Van der Waals scale factor
+    - ff_file_paths: a list with the force field file paths
+    - mg_cutoff: the cutoff distance for Mg atoms for oxygen allocation in MT
+    - h_cutoff: the cutoff distance for H atoms for oxygen allocation in MT
+    - bond_cutoff: the cutoff distance for bonds
+    - ff_params: a list with the force field parameters called ff_types
 
-reading from clayff and cvff force field in the forcefield folder
-manually making functions to allocate the values of this forcefield that need to be used (i.e. 'oh' and 'al')
-if a new ff_param is added, or removed, this should be manually taken care of in the SystemAllocator class
-solvates system based on gromacs method using spc216 water model box
-ions are added in a horizontal plane, spaced out with pbc in mind
+Note: 
+    Adding a ff_param, requires to manually add this allocatoin in SystemAllocator.py
+    Adding ff parameters requires knowledge about the system and manually finding the correct type in the force field file(s)
+    Duplicate ff_types will be called "{ff_type}[dup]" for the second instance
+    A manual check for the .data file is recommended to ensure that the correct parameters are allocated to the atoms
+"""
 
-by enlargening the system, the accuracy of the system will be increased
-
-The following thresholds for bond defenitions:
-- distance_threshold_mg = 2.0
-- distance_threshold_h = 1.0
-- bond_cutoff = 1.5
-
-for the solvent system, the following thresholds are used:
-- default_radius = 1.05
-- self.default_scale = 5.7 (10x gromacs default)
-
-'''
+from code.main_runner import main
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    main(input_file =       'STx_prot',
+         replication =      (4,4), 
+         height =           30,
+         al_mg_ratio =      7.1702509,      # Based on STx1b data (Castellini 2017)
+         ca_si_ratio =      0.055125,       # Based on STx1b data (Castellini 2017)
+         
+         water_file =       'spc216',
+         vdw_radii_file =   'vdwradaii',
+         vdw_def_radius =    1.05,          # default if not in file
+         vdw_def_scale =     5.70,          # helping to achieve a density close to 1000 g/l for proteins
+                                            # ^ this is to be changed.
 
-    system = SystemWriter(file_name     =     'STx_prot', 
-                          replication   =     (4,4), 
-                          height        =     30,
-                          al_mg_ratio   =     7.1702509,    # Based on STx1b data (Castellini 2017)
-                          ca_si_ratio   =     0.055125,     # Based on STx1b data (Castellini 2017)
-                          ff_params     =     ['ao', 'mgo', 'st', 'ho', 'ob', 'ohs', 'obos', 'oh', 'Ca', 'o*', 'h*']
-                          )        
+         ff_files =         ['clayff', 'cvff'],
+         mg_cutoff     =    2.0,        
+         h_cutoff      =    1.0,       
+         bond_cutoff   =    1.5,      
 
-    
+         ff_params =        ['ao', 
+                             'mgo', 
+                             'st', 
+                             'ho', 
+                             'ob', 
+                             'ohs', 
+                             'obos', 
+                             'oh', 
+                             'Ca', 
+                             'o*',          # SPC water model
+                             'h*'])         # SPC water model
 
-'''
+"""
 https://link.springer.com/article/10.1346/CCMN.2017.064065 (Casteleinni 2017)
-'''
+"""

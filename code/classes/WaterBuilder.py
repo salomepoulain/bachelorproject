@@ -1,12 +1,12 @@
-from code.classes.UnitcellPartials import Atom, Molecule
+from code.classes.SystemParts import Atom, Molecule
 import math
 
-class WaterLoader:
-    def __init__(self):
-        self.water_file = "water/spc216.gro"
-        self.vdw_radii_file = "water/vdwradaii.dat"
-        self.default_radius = 1.05 # default if not in file
-        self.default_scale = 5.7 # helping to achieve a density close to 1000 g/l for proteins
+class WaterBuilder:
+    def __init__(self, water_file, vdw_radii_file, vdw_def_radius, vdw_def_scale):
+        self.water_file = 'water/' + water_file + '.gro'
+        self.vdw_radii_file = 'water/' + vdw_radii_file + '.dat'
+        self.vdw_def_radius = vdw_def_radius
+        self.vdw_def_scale = vdw_def_scale
         self.vdw_radii = {}
 
         self.dimensions = ((0, 0), (0, 0), (0, 0))
@@ -23,8 +23,7 @@ class WaterLoader:
             for line in lines[2:]:
                 if len(line.strip().split()) != 6:
                     continue
-                
-
+            
                 element = line[10:15].strip()
                 if element == "OW":
                     element = "O"
@@ -172,7 +171,7 @@ class WaterLoader:
     
     def remove_overlaying_water(self, other_molecules: list, system_dimensions: tuple):
         other_atoms_info = [
-            (atom.position, self.vdw_radii.get(atom.element, self.default_radius) * self.default_scale)
+            (atom.position, self.vdw_radii.get(atom.element, self.vdw_def_radius) * self.vdw_def_scale)
             for molecule in other_molecules for atom in molecule.atoms
         ]
 
@@ -180,7 +179,7 @@ class WaterLoader:
         for molecule in self.molecules:
             keep_molecule = True
             for atom in molecule.atoms:
-                atom_radius = self.vdw_radii.get(atom.element, self.default_radius) * self.default_scale
+                atom_radius = self.vdw_radii.get(atom.element, self.vdw_def_radius) * self.vdw_def_scale
                 if any(self.distance(atom.position, other_position, system_dimensions) < (atom_radius + other_radius)
                     for other_position, other_radius in other_atoms_info):
                     keep_molecule = False

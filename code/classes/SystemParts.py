@@ -1,3 +1,9 @@
+"""
+This module defines classes to model the fundamental components of a molecular dynamics simulation. 
+These include molecules, atoms, and various force field parameters such as bonds, angles, torsions, and improper torsions. 
+Each class encapsulates the properties necessary for defining molecular structures and interactions based on force fields.
+"""
+
 class Molecule:
     def __init__(self):   
         self.id = None
@@ -20,30 +26,26 @@ class Molecule:
         bond.atoms = [atom1, atom2]
         bond.ff_bond_coef = bond_coef
         self.bonds.append(bond)
-        # print(f"Bond added between atom {atom1.element} and {atom2.element}.")
     
     def add_angle(self, atom1, atom2, atom3, angle_coef):
         angle = Angle()
         angle.atoms = [atom1, atom2, atom3]
         angle.ff_angle_coef = angle_coef
         self.angles.append(angle)
-    #     print(f"Angle added between atoms with IDs {atom1.id}, {atom2.id}, and {atom3.id}.")
 
-    # def add_torsion(self, atom1: Atom, atom2: Atom, atom3: Atom, atom4: Atom, torsion_coef: FF_torsion_coef = None):
-    #     torsion = Torsion()
-    #     torsion.atoms = [atom1, atom2, atom3, atom4]
-    #     torsion.ff_torsion_coef = torsion_coef
-    #     self.torsions.append(torsion)
-    #     print(f"Torsion added between atoms with IDs {atom1.id}, {atom2.id}, {atom3.id}, and {atom4.id}.")
+    def add_torsion(self, atom1, atom2, atom3, atom4, torsion_coef):
+        torsion = Torsion()
+        torsion.atoms = [atom1, atom2, atom3, atom4]
+        torsion.ff_torsion_coef = torsion_coef
+        self.torsions.append(torsion)
 
-    # def add_improper(self, atom1: Atom, atom2: Atom, atom3: Atom, atom4: Atom, improper_coef: FF_improper_coef = None):
-    #     improper = Improper()
-    #     improper.atoms = [atom1, atom2, atom3, atom4]
-    #     improper.ff_improper_coef = improper_coef
-    #     self.impropers.append(improper)
-    #     print(f"Improper added between atoms with IDs {atom1.id}, {atom2.id}, {atom3.id}, and {atom4.id}.")
+    def add_improper(self, atom1, atom2, atom3, atom4, improper_coef):
+        improper = Improper()
+        improper.atoms = [atom1, atom2, atom3, atom4]
+        improper.ff_improper_coef = improper_coef
+        self.impropers.append(improper)
 
-    def return_atom_dict(self, bond_cutoff):
+    def return_atom_dict(self):
         atom_dict = {}
         for atom in self.atoms:
             atom_type_key = atom.ff_atom.type if atom.ff_atom else None
@@ -55,7 +57,6 @@ class Molecule:
         return atom_dict
     
     def is_bonded(self, atom1, atom2):
-        """ Helper method to determine if two atoms are bonded in a molecule """
         return any(set([atom1, atom2]) == set(bond.atoms) for bond in self.bonds)
     
     def has_angle(self, atom1, atom2, atom3):
@@ -119,10 +120,6 @@ class FF_atom:
         self.connections: int = None
         self.mass: float = None
         self.charge: float = None
-
-    def __str__(self):
-        return f"Type: {self.type}, Mass: {self.mass}, Element: {self.element}, " \
-               f"Connections: {self.connections}, Description: {self.description}, Charge: {self.charge}"
 
 class FF_nonbond_coef:
     def __init__(self) -> None:
