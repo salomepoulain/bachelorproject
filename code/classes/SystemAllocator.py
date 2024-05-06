@@ -3,7 +3,7 @@ from code.classes.SystemBuilder import SystemBuilder
 from code.classes.ForceFieldLoader import ForceFieldLoader
 from typing import List
 import math
-from itertools import combinations, permutations
+from itertools import combinations, permutations, product
 
 class SystemAllocator:
     def __init__(self,
@@ -57,6 +57,7 @@ class SystemAllocator:
     def preprocess_all(self):
         self.preprocess_bond_coefs()
         self.preprocess_angle_coefs()
+        self.preprocess_torsion_coefs()
 
     def allocate_bonds(self):
         self.add_bonds()
@@ -88,10 +89,60 @@ class SystemAllocator:
                 self.ff_attributes[key]["angle_coef"] = angle_dict
 
     def preprocess_torsion_coefs(self):
-        pass
+        for key, attributes in self.ff_attributes.items():
+            if "torsion_coef" in attributes:
+                torsion_dict = {}
+                for torsion in attributes["torsion_coef"]:
+                    atoms = torsion.ff_atoms
+                    if len(atoms) == 4:
+                        sorted_ends = sorted([atoms[0].type, atoms[3].type])
+                        torsion_key = (sorted_ends[0], atoms[1].type, atoms[2].type, sorted_ends[1])
+                    else:
+                        continue
+                    torsion_dict[torsion_key] = torsion
+                self.ff_attributes[key]["torsion_coef"] = torsion_dict
 
-    def preprocess_improper_coefs(self):
-        pass
+    def preprocess_torsion_coefs(self):
+        for key, attributes in self.ff_attributes.items():
+            if "torsion_coef" in attributes:
+                torsion_dict = {}
+                for torsion in attributes["torsion_coef"]:
+                    atoms = torsion.ff_atoms
+
+                    if len(atoms) == 4:
+                        atom_types = []
+                        for atom in atoms:
+                            if atom.type == '*':
+                                atom_types.append(list(self.ff_attributes.keys()))
+                            else:
+                                atom_types.append([atom.type])
+
+                        combinations = product(*atom_types)
+
+                        for comb in combinations:
+                            sorted_ends = sorted([comb[0], comb[3]])
+                            torsion_key = (sorted_ends[0], comb[1], comb[2], sorted_ends[1])
+                            torsion_dict[torsion_key] = torsion
+
+                            backward_key = tuple(reversed(torsion_key))
+                            torsion_dict[backward_key] = torsion
+
+                self.ff_attributes[key]["torsion_coef"] = torsion_dict
+
+        self.print_torsion_dict()
+
+        
+
+    def print_torsion_dict(self):
+        for key, attributes in self.ff_attributes.items():
+            if "torsion_coef" in attributes:
+                print(f"Torsion Coefficients for {key}:")
+                torsion_dict = attributes["torsion_coef"]
+                for torsion_key, torsion_value in torsion_dict.items():
+                    print(f"Torsion Key: {torsion_key}, Torsion Value: {torsion_value}")
+                    for atom in torsion_value.ff_atoms:
+                        print(f"Atom: {atom.type}")
+
 
     def find_min_max_z(self):
         min_z = float('inf')  
@@ -244,7 +295,37 @@ class SystemAllocator:
 
 
     def add_torsion(self):
-        pass
+        for molecule in self.molecules:
+            if len(molecule.atoms) < 4:
+                continue
+
+            atom_types_present = {atom.ff_atom.type for atom in molecule.atoms if atom.ff_atom}
+            if not any(self.ff_attributes.get(atom_type, {}).get("torsion_coef") for atom_type in atom_types_present):
+                continue
+
+            processed_torsions = set()
+            for torsion_atoms in permutations(molecule.atoms, 4):
+                current_permutation = tuple(id(atom) for atom in torsion_atoms)
+                if current_permutation in processed_torsions:
+                    continue
+
+                processed_torsions.add(current_permutation)
+
+                # Check if A-B, B-C, and C-D are connected
+                if not (molecule.is_bonded(torsion_atoms[0], torsion_atoms[1]) and
+                        molecule.is_bonded(torsion_atoms[1], torsion_atoms[2]) and
+                        molecule.is_bonded(torsion_atoms[2], torsion_atoms[3])):
+                    continue
+
+                if molecule.has_torsion(*torsion_atoms):
+                    continue
+
+                torsion_key = tuple(atom.ff_atom.type for atom in torsion_atoms)
+                torsion_dict = self.ff_attributes.get(torsion_atoms[1].ff_atom.type, {}).get("torsion_coef", {})
+                torsion_coef = torsion_dict.get(torsion_key)
+
+                if torsion_coef:
+                    molecule.add_torsion(*torsion_atoms, torsion_coef)
 
     def add_improper(self):
         pass

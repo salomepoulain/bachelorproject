@@ -21,7 +21,7 @@
 
 # LAMMPS MT DATA FILE GENERATOR FOR BACHELORPROJECT 2024
 
-Understanding clays, namely smectites, can might give insight into the origin of life. It has been shown that amino acid may adsorb to the surface area of the clay within the interlayer space, particulary on Montmorrilonite (MT). Molecular Dynamic simulations can give greater insight. A forcefield called 'CLAYFF' works particulary well for clay simulations, and works together with CVFF. This forcefield requires LAMMPS to run the simulation. For this simulation to be ran, a .DATA file is necessary, storing all information and parameters of the required system. Using an Object Oriented approach with python, this code helps to easily generate a .DATA file, with various parameters and options.
+Understanding clays, namely smectites, might give insight into the origin of life. It has been shown that amino acid may adsorb to the surface area of the clay within the interlayer space, particulary on Montmorrilonite (MT). Molecular Dynamic simulations can give greater insight. A forcefield called 'CLAYFF' works particulary well for clay simulations, and works together with CVFF. This forcefield requires LAMMPS to run the simulation. For this simulation to be ran, a .DATA file is necessary, storing all information and parameters of the required system. Using an Object Oriented approach with python, this code helps to easily generate a .DATA file, with various parameters and options.
 
 ***
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
 - It then shows the logo followed by a message after it is finished creating the output file
 - By a system larger than 4x4, a loading icon is being shown
-- When writing 'python main.py <number>' in cmd line, it should run a <number> x <number> replication system with the other settings within python.py
+- When writing 'python main.py *number*' in cmd line, it should run a *number* x *number* replication system with the other settings within python.py
 
 ***
 

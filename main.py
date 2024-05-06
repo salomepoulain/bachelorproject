@@ -49,7 +49,7 @@ from code.main_runner import main
 
 if __name__ == "__main__":
     main(input_file =       'STx_prot',     # Contains protonated unit cell from www.charmm-gui.org [1]
-         replication =      (4,4), 
+         replication =      (6,6), 
          height =           30,
          al_mg_ratio =      7.1702509,      # Based on STx1b data (Castellini 2017) [2]
          ca_si_ratio =      0.055125,       # Based on STx1b data (Castellini 2017) [2]
@@ -76,8 +76,8 @@ if __name__ == "__main__":
                              'oh', 
                              'Ca', 
                              'o*',          # SPC water model
-                             'h*'           # SPC water model
-                             
+                             'h*',           # SPC water model
+                             'cn',
                             ])             
 
 """
