@@ -16,12 +16,14 @@ Description:
     - for torsion_coefs, '*' is used to represent a wildcard atom type
 """
 from code.classes.SystemParts import FF_atom, FF_pair_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef, FF_equivalence
+from code.classes.ChosenSettings import ChosenSettings
 from typing import List, Set
 
 
-class ForceFieldLoader:
-    def __init__(self, ff_files) -> None:
-        self.ff_files = [f"forcefields/{name}.frc" for name in ff_files]
+class ForceFieldLoader():
+    def __init__(self, settings) -> None:
+        self.s = settings
+
         self.ff_atoms: List[FF_atom] = []
         self.ff_equivalences: List[FF_equivalence] = []
         self.pair_coefs: List[FF_pair_coef] = []
@@ -35,7 +37,8 @@ class ForceFieldLoader:
 
     def load_all_forcefield_params(self):
         i = 0
-        for file_path in self.ff_files:
+        files = [f"forcefields/{name}.frc" for name in self.s.ff_files]
+        for file_path in files:
             self.read_ff_atom_types(file_path, i)
             self.read_ff_equivalences(file_path, i)
 

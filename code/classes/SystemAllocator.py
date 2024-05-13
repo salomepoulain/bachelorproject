@@ -1,69 +1,54 @@
 from code.classes.SystemParts import Molecule
-from code.classes.SystemBuilder import SystemBuilder
+from code.classes.ClayBuilder import ClayBuilder
 from code.classes.ForceFieldLoader import ForceFieldLoader
 from typing import List
 import math
 from itertools import combinations, permutations, product
 
-class SystemAllocator:
-    def __init__(self,
-                input_file,
-                replication,
-                height,
-                al_mg_ratio,
-                ca_si_ratio,
-                water_file,
-                vdw_radii_file,
-                vdw_def_radius,
-                vdw_def_scale,
-                ff_files,
-                mg_cutoff,
-                h_cutoff,
-                bond_cutoff,
-                ff_params):
+class SystemAllocator(ClayBuilder):
+    def __init__(self, settings):
+        super().__init__(settings)
 
-        self.system = SystemBuilder(input_file, replication, height, al_mg_ratio, ca_si_ratio, water_file, vdw_radii_file, vdw_def_radius, vdw_def_scale)
-        self.dimensions = self.system.dimensions
-        self.molecules: List[Molecule] = self.system.molecules
+        self.s = settings
 
-        self.forcefieldloader = ForceFieldLoader(ff_files)
-        self.params = ff_params
+        self.forcefieldloader = ForceFieldLoader(self.s)
 
-        self.mg_cutoff = mg_cutoff
-        self.h_cutoff = h_cutoff
-        self.bond_cutoff = bond_cutoff
-
-        self.ff_attributes = {}
-        for ff_type in self.params:
-            dictionary = self.forcefieldloader.get_info_by_type(ff_type)
-            self.ff_attributes[ff_type] = dictionary
-
+        self.ff_attributes = self.add_ff_attributes()
         self.preprocess_all()
 
-        self.allocate_ff_atoms()
-        self.allocate_bonds()
+        self.process_types = {'clay'}
+        self.allocate_ff_atoms(self.process_types)
+        self.allocate_bonds(self.process_types)
 
+    def add_ff_attributes(self):
+        super_dictionary = {}
+        for ff_type in self.s.ff_atom_types:
+            dictionary = self.forcefieldloader.get_info_by_type(ff_type)
+            super_dictionary[ff_type] = dictionary
+        return super_dictionary
 
-    def allocate_ff_atoms(self):
-        """
-        THESE FUNCTIONS ARE MANUALLY ADDED AND HARDCODED.
-        SYSTEM DEPENDENT
-        """
-        self.add_clay_ff()
-        self.add_clay_ff_oxygens()
-        self.add_solvent()
-        self.add_ions()
+    def allocate_ff_atoms(self, process_types):
+        if 'clay' in process_types:
+            self.add_clay_ff()
+            self.add_clay_ff_oxygens()
+
+        if 'water' in process_types:
+            self.add_solvent()
+
+        if 'ion' in process_types:
+            self.add_ions()
+
+    def allocate_bonds(self, process_types):
+        for process_type in process_types:
+            self.add_bonds(process_type)
+            self.add_angles(process_type)
+            self.add_torsion(process_type)
+            self.add_improper(process_type)
 
     def preprocess_all(self):
         self.preprocess_bond_coefs()
         self.preprocess_angle_coefs()
         self.preprocess_torsion_coefs()
-
-    def allocate_bonds(self):
-        self.add_bonds()
-        self.add_angles()
-        self.add_torsion()
-        self.add_improper()
 
     def preprocess_bond_coefs(self):
         for key, attributes in self.ff_attributes.items():
@@ -129,9 +114,7 @@ class SystemAllocator:
 
                 self.ff_attributes[key]["torsion_coef"] = torsion_dict
 
-        self.print_torsion_dict()
-
-        
+        # self.print_torsion_dict()
 
     def print_torsion_dict(self):
         for key, attributes in self.ff_attributes.items():
@@ -142,21 +125,6 @@ class SystemAllocator:
                     print(f"Torsion Key: {torsion_key}, Torsion Value: {torsion_value}")
                     for atom in torsion_value.ff_atoms:
                         print(f"Atom: {atom.type}")
-
-
-    def find_min_max_z(self):
-        min_z = float('inf')  
-        max_z = float('-inf') 
-        for molecule in self.molecules:
-            if molecule.type == "clay":
-                for atom in molecule.atoms:
-                    if atom.element == "O":
-                        z_position = atom.position[2]
-                        if z_position < min_z:
-                            min_z = z_position
-                        if z_position > max_z:
-                            max_z = z_position
-        return min_z, max_z
     
     def distance(self, atom1, atom2):
         normal_distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(atom1.position, atom2.position)))
@@ -191,36 +159,40 @@ class SystemAllocator:
                     # Hydrogens are hydroxyl hydrogens
                     if atom.element == "H":
                         atom.ff_atom = self.ff_attributes["ho"]["ff_atom"]
-    
-    def add_clay_ff_oxygens(self):
-        min_z, max_z = self.find_min_max_z()
 
+    def add_clay_ff_oxygens(self):
         for molecule in self.molecules:
             if molecule.type == "clay":
-                height_dictionary = {i: [] for i in range(4)} 
+                min_z, max_z = self.find_min_max_z_for_molecule(molecule)
+                
+                height_dictionary = {i: [] for i in range(4)}  
 
-                # Classify oxygen atoms into rows based on their z position
                 for atom in molecule.atoms:
                     if atom.element == "O":
                         z_position = atom.position[2]
                         row_number = int((z_position - min_z) / (max_z - min_z) * 4)
-                        row_number = min(row_number, 3) 
-                        height_dictionary.setdefault(row_number, []).append(atom)
+                        row_number = min(row_number, 3)
+                        height_dictionary[row_number].append(atom)
 
-                for row in range(4):
-                    if height_dictionary[row]:  
-                        for oxygen_atom in height_dictionary[row]:
-                            close_to_magnesium = any(atom.element == "Mg" and self.distance(oxygen_atom, atom) <= self.mg_cutoff for atom in molecule.atoms)
-                            close_to_hydrogen = any(atom.element == "H" and self.distance(oxygen_atom, atom) <= self.h_cutoff for atom in molecule.atoms)
-                            ff_type = 'ob' if row in [0, 3] else ('ohs' if close_to_magnesium and close_to_hydrogen else 'obos' if close_to_magnesium else 'oh' if close_to_hydrogen else 'ob')
-                            
-                            oxygen_atom.ff_atom = self.ff_attributes[ff_type]["ff_atom"]
-                            
-    def add_ions(self):
-        for molecule in self.molecules:
-            if molecule.type == "ion":
-                if molecule.atoms[0].element == "Ca":
-                    molecule.atoms[0].ff_atom = self.ff_attributes["Ca"]["ff_atom"]
+                for row in height_dictionary:
+                    for oxygen_atom in height_dictionary[row]:
+                        close_to_magnesium = any(atom.element == "Mg" and self.distance(oxygen_atom, atom) <= self.s.mg_cutoff for atom in molecule.atoms)
+                        close_to_hydrogen = any(atom.element == "H" and self.distance(oxygen_atom, atom) <= self.s.h_cutoff for atom in molecule.atoms)
+                        ff_type = 'ob' if row in [0, 3] else ('ohs' if close_to_magnesium and close_to_hydrogen else 'obos' if close_to_magnesium else 'oh' if close_to_hydrogen else 'ob')
+                        
+                        oxygen_atom.ff_atom = self.ff_attributes[ff_type]["ff_atom"]
+
+    def find_min_max_z_for_molecule(self, molecule):
+        min_z = float('inf')
+        max_z = float('-inf')
+        for atom in molecule.atoms:
+            if atom.element == "O":
+                z_position = atom.position[2]
+                if z_position < min_z:
+                    min_z = z_position
+                if z_position > max_z:
+                    max_z = z_position
+        return min_z, max_z
 
     def add_solvent(self):
         for molecule in self.molecules:
@@ -230,9 +202,18 @@ class SystemAllocator:
                         atom.ff_atom = self.ff_attributes["o*"]["ff_atom"]
                     if atom.element == "H":
                         atom.ff_atom = self.ff_attributes["h*"]["ff_atom"]
-
-    def add_bonds(self):
+                            
+    def add_ions(self):
         for molecule in self.molecules:
+            if molecule.type == "ion":
+                if molecule.atoms[0].element == "Ca":
+                    molecule.atoms[0].ff_atom = self.ff_attributes["Ca"]["ff_atom"]
+
+    def add_bonds(self, process_type):
+        for molecule in self.molecules:
+            if molecule.type != process_type:
+                continue
+
             all_atoms = molecule.atoms
             distance_cache = {}
             bond_cache = {}
@@ -246,7 +227,7 @@ class SystemAllocator:
                 else:
                     distance = distance_cache[pair_key]
 
-                if distance > self.bond_cutoff:
+                if distance > self.s.bond_cutoff:
                     continue
 
                 if molecule.is_bonded(atom1, atom2):
@@ -264,8 +245,11 @@ class SystemAllocator:
                 if bond_coef:
                     molecule.add_bond(atom1, atom2, bond_coef)
         
-    def add_angles(self):
+    def add_angles(self, process_type):
         for molecule in self.molecules:
+            if molecule.type != process_type:
+                continue
+
             if len(molecule.atoms) < 3:
                 continue
 
@@ -294,8 +278,11 @@ class SystemAllocator:
                     molecule.add_angle(first_atom, central_atom, last_atom, angle_coef)
 
 
-    def add_torsion(self):
+    def add_torsion(self, process_type):
         for molecule in self.molecules:
+            if molecule.type != process_type:
+                continue
+
             if len(molecule.atoms) < 4:
                 continue
 
@@ -327,8 +314,10 @@ class SystemAllocator:
                 if torsion_coef:
                     molecule.add_torsion(*torsion_atoms, torsion_coef)
 
-    def add_improper(self):
-        pass
+    def add_improper(self, process_type):
+        for molecule in self.molecules:
+            if molecule.type != "clay":
+                continue
 
 
 

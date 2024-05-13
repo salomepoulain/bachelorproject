@@ -1,62 +1,16 @@
-from code.classes.SystemAllocator import SystemAllocator
 from code.classes.SystemParts import Bond, Angle, Torsion, Improper
+from code.classes.VerticalDuplicator import VerticalDuplicator
 from typing import List
 
-class SystemWriter:
-    def __init__(self,
-                input_file,
-                replication,
-                height,
-                al_mg_ratio,
-                ca_si_ratio,
-                water_file,
-                vdw_radii_file,
-                vdw_def_radius,
-                vdw_def_scale,
-                ff_files,
-                mg_cutoff,
-                h_cutoff,
-                bond_cutoff,
-                ff_params):
-    
+class SystemWriter(VerticalDuplicator):
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.s = settings
+
         # Load system in from previous classes
-
-        self.system = SystemAllocator(input_file,
-                                        replication,
-                                        height,
-                                        al_mg_ratio,
-                                        ca_si_ratio,
-                                        water_file,
-                                        vdw_radii_file,
-                                        vdw_def_radius,
-                                        vdw_def_scale,
-                                        ff_files,
-                                        mg_cutoff,
-                                        h_cutoff,
-                                        bond_cutoff,
-                                        ff_params)
-        
-        self.input_file = input_file
-        self.replication = replication
-        self.height = height
-        self.al_mg_ratio = al_mg_ratio
-        self.ca_si_ratio = ca_si_ratio
-        self.water_file = water_file
-        self.vdw_radii_file = vdw_radii_file
-        self.vdw_def_radius = vdw_def_radius
-        self.vdw_def_scale = vdw_def_scale
-        self.ff_files = ff_files
-        self.mg_cutoff = mg_cutoff
-        self.h_cutoff = h_cutoff
-        self.bond_cutoff = bond_cutoff
-        self.ff_params = ff_params
-
-        self.dimensions = self.system.dimensions 
-        self.molecules = self.system.molecules
         self.atoms = [atom for molecule in self.molecules for atom in molecule.atoms]
 
         self.ff_atoms = list(set([atom.ff_atom for molecule in self.molecules for atom in molecule.atoms]))
-        # self.pair_coeffs = list(set([ff_atom.ff_pair_coef for ff_atom in self.ff_atoms]))
 
         self.bond_coeffs = list(set([bond.ff_bond_coef for molecule in self.molecules for bond in molecule.bonds]))
         self.angle_coeffs = list(set([angle.ff_angle_coef for molecule in self.molecules for angle in molecule.angles]))
@@ -69,7 +23,6 @@ class SystemWriter:
         self.impropers: List[Improper] = [improper for molecule in self.molecules for improper in molecule.impropers]
 
         # Store all in correct order
-        
         self.stored_description = []
         self.stored_masses = []
         self.stored_pair_coeffs = []
@@ -83,14 +36,18 @@ class SystemWriter:
         self.stored_angles = []
         self.stored_torsions = []
         self.stored_impropers = []
+        
+        self.stored_footer = []
 
         self.data_file = None
 
         # Add and write all data to file
-
         self.give_all_ids()
         self.store_all()
         self.write_data_file()
+
+        # Write out groups to clay_top.dat
+        # self.write_out_groups()
 
     def give_all_ids(self):
         self.give_atom_id()
@@ -107,67 +64,84 @@ class SystemWriter:
 
 
     def give_atom_id(self):
-        for atom in self.atoms:
-            atom.id = self.atoms.index(atom) + 1
+        atom_id_counter = 1
+        sorted_molecules = sorted(self.molecules, key=lambda molecule: molecule.type)
+
+        for molecule in sorted_molecules:
+            sorted_atoms = sorted(molecule.atoms, key=lambda atom: (atom.element, atom.position))
+
+            for atom in sorted_atoms:
+                atom.id = atom_id_counter
+                atom_id_counter += 1
+
 
     def give_bond_coeff_id(self):
         if len(self.bond_coeffs) == 0:
             return
-        for bond_coeff in self.bond_coeffs:
-            bond_coeff.id = self.bond_coeffs.index(bond_coeff) + 1
+        self.bond_coeffs.sort(key=lambda x: (x.ff_atoms[0].type, x.ff_atoms[1].type))
+        for index, bond_coeff in enumerate(self.bond_coeffs):
+            bond_coeff.id = index + 1
 
     def give_angle_coeff_id(self):
         if len(self.angle_coeffs) == 0:
             return
-        for angle_coeff in self.angle_coeffs:
-            angle_coeff.id = self.angle_coeffs.index(angle_coeff) + 1
+        self.angle_coeffs.sort(key=lambda x: (x.ff_atoms[0].type, x.ff_atoms[1].type, x.ff_atoms[2].type))
+        for index, angle_coeff in enumerate(self.angle_coeffs):
+            angle_coeff.id = index + 1
 
     def give_torsion_coeff_id(self):
         if len(self.torsion_coeffs) == 0:
             return
-        for torsion_coeff in self.torsion_coeffs:
-            torsion_coeff.id = self.torsion_coeffs.index(torsion_coeff) + 1
+        self.torsion_coeffs.sort(key=lambda x: (x.ff_atoms[0].type, x.ff_atoms[1].type, x.ff_atoms[2].type, x.ff_atoms[3].type))
+        for index, torsion_coeff in enumerate(self.torsion_coeffs):
+            torsion_coeff.id = index + 1
 
     def give_improper_coeff_id(self):
         if len(self.improper_coeffs) == 0:
             return
-        for improper_coeff in self.improper_coeffs:
-            improper_coeff.id = self.improper_coeffs.index(improper_coeff) + 1
+        self.improper_coeffs.sort(key=lambda x: (x.ff_atoms[0].type, x.ff_atoms[1].type, x.ff_atoms[2].type, x.ff_atoms[3].type))
+        for index, improper_coeff in enumerate(self.improper_coeffs):
+            improper_coeff.id = index + 1
 
     def give_molecule_id(self):
         if len(self.molecules) == 0:
             return
-        for molecule in self.molecules:
-            molecule.id = self.molecules.index(molecule) + 1
+        self.molecules.sort(key=lambda molecule: min(atom.id for atom in molecule.atoms))
+        for index, molecule in enumerate(self.molecules):
+            molecule.id = index + 1
 
     def give_ff_atom_type_id(self):
-        sorted_atoms = sorted(self.ff_atoms, key=lambda atom: atom.mass)
-        for index, ff_atom in enumerate(sorted_atoms, start=1):
-            ff_atom.id = index
+        sorted_ff_atoms = sorted(self.ff_atoms, key=lambda x: (x.mass, x.description))
+        for index, ff_atom in enumerate(sorted_ff_atoms):
+            ff_atom.id = index + 1
 
     def give_bond_id(self):
         if len(self.bonds) == 0:
             return
-        for bond in self.bonds:
-            bond.id = self.bonds.index(bond) + 1
+        self.bonds.sort(key=lambda x: (x.ff_bond_coef.id, (min(x.atoms[0].id, x.atoms[1].id), max(x.atoms[0].id, x.atoms[1].id))))
+        for index, bond in enumerate(self.bonds):
+            bond.id = index + 1
     
     def give_angle_id(self):
         if len(self.angles) == 0:
             return
-        for angle in self.angles:
-            angle.id = self.angles.index(angle) + 1
+        self.angles.sort(key=lambda x: (x.ff_angle_coef.id, (x.atoms[0].id, x.atoms[1].id, x.atoms[2].id)))
+        for index, angle in enumerate(self.angles):
+            angle.id = index + 1
         
     def give_torsion_id(self):
         if len(self.torsions) == 0:
             return
-        for torsion in self.torsions:
-            torsion.id = self.torsions.index(torsion) + 1
+        self.torsions.sort(key=lambda x: (x.ff_torsion_coef.id, (x.atoms[0].id, x.atoms[1].id, x.atoms[2].id, x.atoms[3].id)))
+        for index, torsion in enumerate(self.torsions):
+            torsion.id = index + 1
 
     def give_improper_id(self):
         if len(self.impropers) == 0:
             return
-        for improper in self.impropers:
-            improper.id = self.impropers.index(improper) + 1
+        self.impropers.sort(key=lambda x: (x.ff_improper_coef.id, (x.atoms[0].id, x.atoms[1].id, x.atoms[2].id, x.atoms[3].id)))
+        for index, improper in enumerate(self.impropers):
+            improper.id = index + 1
 
     def store_all(self):
         self.store_description()
@@ -182,55 +156,88 @@ class SystemWriter:
         self.store_angles()
         self.store_dihedrals()
         self.store_impropers()
-
-    def title_line_writer(self, item):
-        attribute = getattr(self, item, [])
-        amount = len(attribute)
-        return f"{amount} {item}"
+        self.store_footer()
     
-    def generate_header(self):
+    def generate_footer(self):
         extra_spaces = 4 
         labels = [
-            "Input file", "Replication", "Interlayer height (A)", "Al/Mg Ratio",
-            "Ca/Si Ratio", "Water file used", "vdW radii file", "Default vdW radius",
-            "Default vdW scale", "Force fields used", "Mg cutoff distance", "H cutoff distance",
-            "Bond cutoff distance", "Force field parameters"
-        ]
+            "replication", 
+            "al_mg_ratio",
+            "net_charge",
+            "water_per_ion",
+            "ff_atom_types",
+            "water_distance",
+            "mg_cutoff",
+            "h_cutoff",
+            "bond_cutoff",
+            "input_file",
+            "ff_files",
+            "water_file"
+        ] 
+            # "Input file", 
+            # "Replication", 
+            # "Al/Mg Ratio",
+            # "Ca/Si Ratio", 
+            # "Water file used", 
+            # "Water distance used",
+            # "Water duplication", 
+            # "Water per ion",
+            # "Force fields used", 
+            # "Mg cutoff distance", 
+            # "H cutoff distance",
+            # "Bond cutoff distance", 
+            # "Force field parameters"
+
         max_label_length = max(len(label) for label in labels) + extra_spaces
-        header = [
-            "# --------------------------------------------------------------",
-            "# Generated DATA file using 'LAMMPS MT DATA FILE GENERATOR'",
-            "#",
-            f"# {'Input file:'.ljust(max_label_length)} {self.input_file}",
-            f"# {'Replication:'.ljust(max_label_length)} {self.replication[0]}x{self.replication[1]}",
-            f"# {'Interlayer height:'.ljust(max_label_length)} {self.height} Angstroms",
-            f"# {'Al/Mg Ratio:'.ljust(max_label_length)} {self.al_mg_ratio}",
-            f"# {'Ca/Si Ratio:'.ljust(max_label_length)} {self.ca_si_ratio}",
-            f"# {'Water file used:'.ljust(max_label_length)} {self.water_file}",
-            f"# {'vdW radii file:'.ljust(max_label_length)} {self.vdw_radii_file}",
-            f"# {'Default vdW radius:'.ljust(max_label_length)} {self.vdw_def_radius}",
-            f"# {'Default vdW scale:'.ljust(max_label_length)} {self.vdw_def_scale}",
-            f"# {'Force fields used:'.ljust(max_label_length)} {', '.join(self.ff_files)}",
-            f"# {'Mg cutoff distance:'.ljust(max_label_length)} {self.mg_cutoff} Angstroms",
-            f"# {'H cutoff distance:'.ljust(max_label_length)} {self.h_cutoff} Angstroms",
-            f"# {'Bond cutoff distance:'.ljust(max_label_length)} {self.bond_cutoff} Angstroms",
+        footer = [
+            f"# {'replication:'.ljust(max_label_length)} {self.s.replication[0]}x{self.s.replication[1]}x{self.s.replication[2]}",
+            f"# {'al_mg_ratio:'.ljust(max_label_length)} {self.s.al_mg_ratio}",
+            f"# {'net_charge:'.ljust(max_label_length)} {self.s.net_charge}",
+            f"# {'water_per_ion:'.ljust(max_label_length)} {self.write_water_per_ion()}",
+            f"# {'water_distance:'.ljust(max_label_length)} {self.s.water_distance} Angstroms",
+            f"# {'mg_cutoff:'.ljust(max_label_length)} {self.s.mg_cutoff} Angstroms",
+            f"# {'h_cutoff:'.ljust(max_label_length)} {self.s.h_cutoff} Angstroms",
+            f"# {'bond_cutoff:'.ljust(max_label_length)} {self.s.bond_cutoff} Angstroms",
+            f"# {'input_file:'.ljust(max_label_length)} {self.s.input_file}",
+            f"# {'ff_files:'.ljust(max_label_length)} {', '.join(self.s.ff_files)}",
+            f"# {'water_file:'.ljust(max_label_length)} {self.s.water_file}",
             "# Force field parameters:"
         ]
 
         params_start = max_label_length + 2
 
-        for param in self.ff_params:
-            header.append(f"#{' ':<{params_start}}- {param}")
+        for param in self.s.ff_atom_types:
+            footer.append(f"#{' ':<{params_start}}- {param}")
 
-        header.append("# --------------------------------------------------------------")
-        return "\n".join(header) + "\n"
+        footer_length = 0
+        with open('misc/banner.txt', 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                footer.append("# " + line.rstrip('\n'))
+                footer_length = len(line) if len(line) > footer_length else footer_length
 
+        dashed_line = "# " + "-" * (footer_length - 1)
+        footer.insert(0, dashed_line)
+        footer.append(dashed_line)
+
+        return "\n".join(footer)
+
+    def write_water_per_ion(self):
+        if self.s.water_per_ion is None or self.s.water_per_ion > 23.125:
+            return "Default by szscerba: 23.125"
+
+        return self.s.water_per_ion
+
+    def store_footer(self):
+        self.stored_footer.append(self.generate_footer())
+
+    def title_line_writer(self, item):
+        attribute = getattr(self, item, [])
+        amount = len(attribute)
+        return f"{amount} {item}"
 
     def store_description(self):
-        #dimensions = " " + str(self.replication[0]) + " by " + str(self.replication[1]) + " replicated"
-        #self.stored_description.append("Generated DATA file using OOP: " + self.input_file + ".xyz" + dimensions + "\n")
-
-        self.stored_description.append(self.generate_header())
+        self.stored_description.append("Generated DATA file using 'LAMMPS MT DATA FILE GENERATOR'")
 
         items = ["atoms", "bonds", "angles", "dihedrals", "impropers"]
         for item in items:
@@ -266,28 +273,32 @@ class SystemWriter:
         if len(self.bond_coeffs) == 0:
             return
         self.stored_bond_coeffs.append("Bond Coeffs\n")
-        for bond_coef in self.bond_coeffs:
+        sorted_bond_coeffs = sorted(self.bond_coeffs, key=lambda x: x.id)
+        for bond_coef in sorted_bond_coeffs:
             self.stored_bond_coeffs.append((bond_coef.id, bond_coef.k, bond_coef.r0))
 
     def store_angle_coeffs(self):
         if len(self.angle_coeffs) == 0:
             return
         self.stored_angle_coeffs.append("Angle Coeffs\n")
-        for angle_coef in self.angle_coeffs:
+        sorted_angle_coeffs = sorted(self.angle_coeffs, key=lambda x: x.id)
+        for angle_coef in sorted_angle_coeffs:
             self.stored_angle_coeffs.append((angle_coef.id, angle_coef.k, angle_coef.theta0))
 
     def store_dihedral_coeffs(self):
         if len(self.torsion_coeffs) == 0:
             return
         self.stored_torsion_coeffs.append("Dihedral Coeffs\n")
-        for torsion_coef in self.torsion_coeffs:
+        sorted_torsion_coeffs = sorted(self.torsion_coeffs, key=lambda x: x.id)
+        for torsion_coef in sorted_torsion_coeffs:
             self.stored_torsion_coeffs.append((torsion_coef.id, torsion_coef.kphi, torsion_coef.n, torsion_coef.phi0))
 
     def store_improper_coeffs(self):
         if len(self.improper_coeffs) == 0:
             return
         self.stored_improper_coeffs.append("Improper Coeffs\n")
-        for improper_coef in self.improper_coeffs:
+        sorted_improper_coeffs = sorted(self.improper_coeffs, key=lambda x: x.id)
+        for improper_coef in sorted_improper_coeffs:
             self.stored_improper_coeffs.append((improper_coef.id, improper_coef.kchi, improper_coef.n, improper_coef.chi0))
 
     def store_atoms(self):
@@ -295,36 +306,49 @@ class SystemWriter:
             return
         self.stored_atoms.append("Atoms\n")
         for molecule in self.molecules:
-            for atom in molecule.atoms:
-                self.stored_atoms.append((atom.id, molecule.id, atom.ff_atom.id, atom.ff_atom.charge, atom.position[0], atom.position[1], atom.position[2]))
+            sorted_atoms = sorted(molecule.atoms, key=lambda atom: atom.id)
+            for atom in sorted_atoms:
+                self.stored_atoms.append((
+                    atom.id,
+                    molecule.id,
+                    atom.ff_atom.id,
+                    atom.ff_atom.charge,
+                    atom.position[0],
+                    atom.position[1],
+                    atom.position[2]
+                ))
 
     def store_bonds(self):
         if len(self.bonds) == 0:
             return
         self.stored_bonds.append("Bonds\n")
-        for bond in self.bonds:
+        sorted_bonds = sorted(self.bonds, key=lambda x: x.id)
+        for bond in sorted_bonds:
             self.stored_bonds.append((bond.id, bond.ff_bond_coef.id, bond.atoms[0].id, bond.atoms[1].id))
     
     def store_angles(self):
         if len(self.angles) == 0:
             return
         self.stored_angles.append("Angles\n")
-        for angle in self.angles:
+        sorted_angles = sorted(self.angles, key=lambda x: x.id)
+        for angle in sorted_angles:
             self.stored_angles.append((angle.id, angle.ff_angle_coef.id, angle.atoms[0].id, angle.atoms[1].id, angle.atoms[2].id))
 
     def store_dihedrals(self):
         if len(self.torsions) == 0:
             return
         self.stored_torsions.append("Dihedrals\n")
-        for torsion in self.torsions:
+        sorted_dihedrals = sorted(self.torsions, key=lambda x: x.id)
+        for torsion in sorted_dihedrals:
             self.stored_torsions.append((torsion.id, torsion.ff_torsion_coef.id, torsion.atoms[0].id, torsion.atoms[1].id, torsion.atoms[2].id, torsion.atoms[3].id))
 
     def store_impropers(self):
         if len(self.impropers) == 0:
             return
         self.stored_impropers.append("Impropers\n")
-        for improper in self.impropers:
-            self.impropers.append((improper.id, improper.ff_improper_coef.id, improper.atoms[0].id, improper.atoms[1].id, improper.atoms[2].id, improper.atoms[3].id))
+        sorted_impropers = sorted(self.impropers, key=lambda x: x.id)
+        for improper in sorted_impropers:
+            self.stored_impropers.append((improper.id, improper.ff_improper_coef.id, improper.atoms[0].id, improper.atoms[1].id, improper.atoms[2].id, improper.atoms[3].id))
 
     def write_section(self, section):
         if len(section) == 0:
@@ -360,7 +384,7 @@ class SystemWriter:
         self.data_file.write("\n")
 
     def write_data_file(self):
-        self.data_file = open("output/" + self.input_file + str(self.replication) + ".data", "w")
+        self.data_file = open("output/" + self.s.input_file + str(self.s.replication) + ".data", "w")
         self.write_section(self.stored_description)
         
         self.write_section(self.stored_masses)
@@ -376,21 +400,77 @@ class SystemWriter:
         self.write_section(self.stored_angles)
         self.write_section(self.stored_torsions)
         self.write_section(self.stored_impropers)
+
+        self.write_section(self.stored_footer)
         self.data_file.close()
 
+    def write_out_groups(self):
+        with open('clay_top.dat', 'a') as file:
+            current_line_length = 0  
+            for molecule in self.molecules:
+                if molecule.type == 'clay':
+                    for atom in molecule.atoms:
+                        if atom.element == 'O':
+                            if 6.069 < atom.position[2] < 10:
+                                output = str(atom.id) + ' '
+                                output_length = len(output)
+                                
+                                if current_line_length + output_length > 60:
+                                    file.write('&'+ '\n')
+                                    current_line_length = 0  
 
-    
+                                file.write(output)
+                                current_line_length += output_length
 
+        with open('clay_bottom.dat', 'a') as file:
+            current_line_length = 0  
+            for molecule in self.molecules:
+                if molecule.type == 'clay':
+                    for atom in molecule.atoms:
+                        if atom.element == 'O':
+                            if -2 < atom.position[2] < 0.66:
+                                output = str(atom.id) + ' '
+                                output_length = len(output)
+                                
+                                if current_line_length + output_length > 60:
+                                    file.write('&'+ '\n')
+                                    current_line_length = 0  
 
+                                file.write(output)
+                                current_line_length += output_length
 
+        with open('clay_left.dat', 'a') as file:
+            current_line_length = 0  
+            for molecule in self.molecules:
+                if molecule.type == 'clay':
+                    for atom in molecule.atoms:
+                        if atom.element == 'O':
+                            if atom.position[2] < 10:
+                                if 8.156 < atom.position[1] < 8.853:
+                                    output = str(atom.id) + ' '
+                                    output_length = len(output)
+                                    
+                                    if current_line_length + output_length > 60:
+                                        file.write('&' + '\n')
+                                        current_line_length = 0  
 
+                                    file.write(output)
+                                    current_line_length += output_length
 
-    
-    
+        with open('clay_right.dat', 'a') as file:
+            current_line_length = 0  
+            for molecule in self.molecules:
+                if molecule.type == 'clay':
+                    for atom in molecule.atoms:
+                        if atom.element == 'O':
+                            if atom.position[2] < 10:
+                                if atom.position[1] > 52.320:
+                                    output = str(atom.id) + ' '
+                                    output_length = len(output)
+                                    
+                                    if current_line_length + output_length > 60:
+                                        file.write('&'+ '\n')
+                                        current_line_length = 0  
 
-
-
-
-
-
-    
+                                    file.write(output)
+                                    current_line_length += output_length

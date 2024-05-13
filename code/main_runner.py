@@ -2,27 +2,30 @@ import threading
 import time
 import sys
 from code.classes.SystemWriter import SystemWriter
+from code.classes.ChosenSettings import ChosenSettings
+from code.classes.SystemAllocator import SystemAllocator
+from code.classes.SolventIonAdder import SolventIonAdder
+from code.classes.VerticalDuplicator import VerticalDuplicator
 
-def main(input_file,
-         replication,
-         height,
-         al_mg_ratio,
-         ca_si_ratio,
-         water_file,
-         vdw_radii_file,
-         vdw_def_radius,
-         vdw_def_scale,
-         ff_files,
-         mg_cutoff,
-         h_cutoff,
-         bond_cutoff,
-         ff_params):
+from code.classes.ClayBuilder import ClayBuilder
 
+def main(replication, 
+        al_mg_ratio, 
+        net_charge, 
+        water_per_ion, 
+        ff_atom_types, 
+        water_distance, 
+        mg_cutoff, 
+        h_cutoff, 
+        bond_cutoff, 
+        input_file, 
+        ff_files, 
+        water_file):
+    
     if len(sys.argv) > 1:
         replication_factor = int(sys.argv[1])
-        replication = (replication_factor, replication_factor)
-    
-    final_text = f"Finished writing .data file for {replication[0]}x{replication[1]} system."
+        replication = (replication_factor, replication_factor, 1)
+
     def loading_animation(min_display_time=3):
         start_time = time.time()
         chars = "/—\\|"
@@ -35,6 +38,7 @@ def main(input_file,
                 time.sleep(0.1)
         sys.stdout.write('\r' + final_text + '\n\n')
     
+
     def print_banner(file_path):
         try:
             with open(file_path, 'r') as file:
@@ -46,6 +50,7 @@ def main(input_file,
             print(f"An error occurred: {e}")
 
     print_banner('misc/banner.txt')
+    final_text = f"Finished writing .data file for {replication[0]}x{replication[1]}x{replication[2]} system."
 
     run_animation = threading.Event()
     if replication[0] >= 4 and replication[1] >= 4:
@@ -54,25 +59,30 @@ def main(input_file,
         thread.start()
 
     try:
-        system = SystemWriter(input_file,
-                                replication,
-                                height,
-                                al_mg_ratio,
-                                ca_si_ratio,
-                                water_file,
-                                vdw_radii_file,
-                                vdw_def_radius,
-                                vdw_def_scale,
-                                ff_files,
-                                mg_cutoff,
-                                h_cutoff,
-                                bond_cutoff,
-                                ff_params)
+        settings = ChosenSettings(replication, 
+                                al_mg_ratio, 
+                                net_charge, 
+                                water_per_ion, 
+                                ff_atom_types, 
+                                water_distance, 
+                                mg_cutoff, 
+                                h_cutoff, 
+                                bond_cutoff, 
+                                input_file, 
+                                ff_files, 
+                                water_file)
+        
+        # vertical = VerticalDuplicator(settings)
+
+        #allocator = SystemAllocator(settings)
+        
+        # clay = ClayBuilder(settings)
+        
+        runner = SystemWriter(settings)
 
         if replication[0] < 4 and replication[1] < 4:
             sys.stdout.write('\r' + final_text + '\n\n')
     finally:
-        # Stop the loading animation if it was started
         if run_animation.is_set():
             run_animation.clear()
             thread.join()

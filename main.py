@@ -26,9 +26,9 @@ The main function is called with the following parameters:
     - al_mg_ratio: the Al/Mg ratio in the system
     - ca_si_ratio: the Ca/Si ratio in the system
     - water_file: the name of the water model file
-    - vdw_radii_file: the name of the Van der Waals radii file
-    - vdw_def_radius: the default Van der Waals radius
-    - vdw_def_scale: the default Van der Waals scale factor
+    - water_distance: the distance between the clay and the water in Angstrom
+    - water_duplication: duplicates the szerba water box
+    - water_per_ion: the number of water molecules per ion
     - ff_file_paths: a list with the force field file paths
     - mg_cutoff: the cutoff distance for Mg atoms for oxygen allocation in MT
     - h_cutoff: the cutoff distance for H atoms for oxygen allocation in MT
@@ -48,25 +48,12 @@ from code.main_runner import main
 
 
 if __name__ == "__main__":
-    main(input_file =       'STx_prot',     # Contains protonated unit cell from www.charmm-gui.org [1]
-         replication =      (6,6), 
-         height =           30,
-         al_mg_ratio =      7.1702509,      # Based on STx1b data (Castellini 2017) [2]
-         ca_si_ratio =      0.055125,       # Based on STx1b data (Castellini 2017) [2]
-         
-         water_file =       'spc216',
-         vdw_radii_file =   'vdwradaii',
-         vdw_def_radius =    1.05,          # default if not in file
-         vdw_def_scale =     5.70,          # helping to achieve a density close to 1000 g/l for proteins
-                                            # ^ this is to be changed.
+    main(replication =      (6,6,1), 
+         al_mg_ratio =      6.15232975,      # Based on STx1b data (Castellini 2017) [2]
+         net_charge =       0,
+         water_per_ion =    12,  
 
-         ff_files =         ['clayff', 
-                             'cvff'],
-         mg_cutoff =        2.0,        
-         h_cutoff =         1.0,       
-         bond_cutoff =      1.5,      
-
-         ff_params =        ['ao', 
+         ff_atom_types =    ['ao', 
                              'mgo', 
                              'st', 
                              'ho', 
@@ -75,11 +62,20 @@ if __name__ == "__main__":
                              'obos', 
                              'oh', 
                              'Ca', 
-                             'o*',          # SPC water model
-                             'h*',           # SPC water model
-                             'cn',
-                            ])             
+                             'o*',           # SPC water model
+                             'h*',           # SPC water model,
+                            ],
 
+         water_distance =   4,
+         mg_cutoff =        2.0,
+         h_cutoff =         1.0,                   
+         bond_cutoff =      1.5,
+
+         input_file =       'STx_prot',     # Contains protonated unit cell from www.charmm-gui.org [1]
+         ff_files =         ['clayff',
+                             'cvff'],
+         water_file =       'szscerba'
+                            )           
 """
 [1] https://www.charmm-gui.org/?doc=input
 [2] https://link.springer.com/article/10.1346/CCMN.2017.064065 (Casteleinni 2017)
