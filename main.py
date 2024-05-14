@@ -49,9 +49,11 @@ from code.main_runner import main
 
 if __name__ == "__main__":
     main(replication =      (6,6,1), 
-         al_mg_ratio =      6.15232975,      # Based on STx1b data (Castellini 2017) [2]
+         al_mg_ratio =      6.1702509,      # Based on STx1b data (Castellini 2017) [2]
          net_charge =       0,
-         water_per_ion =    12,  
+         water_per_ion =    0,
+
+         output_file =      'None',       
 
          ff_atom_types =    ['ao', 
                              'mgo', 
@@ -66,6 +68,8 @@ if __name__ == "__main__":
                              'h*',           # SPC water model,
                             ],
 
+         clay_sub_cutoff =  5,
+         random_seed =      42,
          water_distance =   4,
          mg_cutoff =        2.0,
          h_cutoff =         1.0,                   

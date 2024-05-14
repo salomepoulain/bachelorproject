@@ -20,7 +20,7 @@ class SolventIonAdder(SystemAllocator):
 
         self.allocate_ions_and_water()
 
-        self.calculate_system_charge()
+        self.final_charge = self.calculate_system_charge()
 
     # Is this going to be system or clay charge? (include AA or not)
     def calculate_system_charge(self):
@@ -29,18 +29,10 @@ class SolventIonAdder(SystemAllocator):
             for atom in molecule.atoms:
                 charge += atom.ff_atom.charge
         
-        print(f"System charge: {charge}")
         return charge
-    
-    def custom_round(self, number):
-        if (number - math.floor(number)) < 0.5:
-            return int(math.floor(number))
-        else:
-            return int(math.ceil(number))
 
     def calculate_ion_count(self):
         ion_count = self.custom_round(abs(self.s.net_charge - self.system_charge) / self.ff_attributes['Ca']['ff_atom'].charge)
-        print(f"Ion count: {ion_count}")
         return ion_count
     
     def get_clay_height(self):
@@ -89,13 +81,28 @@ class SolventIonAdder(SystemAllocator):
                 return
 
             ca_height = (self.dimensions[2][0] + self.dimensions[2][1]) / 2
-            sqrt_ion_count = int(self.ion_count ** 0.5)
+            ion_count = self.ion_count
 
-            if sqrt_ion_count ** 2 == self.ion_count:
+            def is_prime(n):
+                if n <= 1:
+                    return False
+                for i in range(2, int(n**0.5) + 1):
+                    if n % i == 0:
+                        return False
+                return True
+
+            if is_prime(ion_count):
+                ion_count -= 1
+                place_last_ion_in_center = True
+            else:
+                place_last_ion_in_center = False
+
+            sqrt_ion_count = int(ion_count ** 0.5)
+
+            if sqrt_ion_count ** 2 == ion_count:
                 n_x = n_y = sqrt_ion_count
             else:
-                # Finding factors of ion_count closest to each other for a rectangular grid
-                factors = [(i, self.ion_count // i) for i in range(1, sqrt_ion_count + 1) if self.ion_count % i == 0]
+                factors = [(i, ion_count // i) for i in range(1, sqrt_ion_count + 1) if ion_count % i == 0]
                 n_x, n_y = min(factors, key=lambda x: abs(x[0] - x[1]))
 
             x_spacing = (self.dimensions[0][1] - self.dimensions[0][0]) / n_x
@@ -105,25 +112,21 @@ class SolventIonAdder(SystemAllocator):
                 for i in range(n_x):
                     x = self.dimensions[0][0] + i * x_spacing
                     y = self.dimensions[1][0] + j * y_spacing
-                    
+
                     ion = Molecule()
                     ion.type = 'ion'
                     ion.add_atom('Ca', (x, y, ca_height))
                     self.molecules.append(ion)
 
-            # Handling the case when ion_count is prime or factors chosen do not multiply exactly to ion_count
-            if n_x * n_y < self.ion_count:
-                # Add remaining ions; here we add one more in the center
-                remaining_ions = self.ion_count - n_x * n_y
-                for _ in range(remaining_ions):
-                    mid_x = (self.dimensions[0][0] + self.dimensions[0][1]) / 2
-                    mid_y = (self.dimensions[1][0] + self.dimensions[1][1]) / 2
-                    ion = Molecule()
-                    ion.type = 'ion'
-                    ion.add_atom('Ca', (mid_x, mid_y, ca_height))
-                    self.molecules.append(ion)
+            if place_last_ion_in_center:
+                mid_x = (self.dimensions[0][0] + self.dimensions[0][1]) / 2
+                mid_y = (self.dimensions[1][0] + self.dimensions[1][1]) / 2
+                ion = Molecule()
+                ion.type = 'ion'
+                ion.add_atom('Ca', (mid_x, mid_y, ca_height))
+                self.molecules.append(ion)
 
-                
+        return
     
     def allocate_ions_and_water(self):
         self.process_types = {'water', 'ion'}

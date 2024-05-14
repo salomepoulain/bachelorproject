@@ -1,5 +1,7 @@
 from code.classes.SystemParts import Molecule
 from code.classes.ChosenSettings import ChosenSettings
+import random
+import math
 
 class ClayBuilder():
     def __init__(self, settings):
@@ -101,22 +103,48 @@ class ClayBuilder():
                     x, y, z = atom.position
                     file.write(f"{element} {x} {y} {z}\n")
 
-    def mg_substitute(self):
-        all_atoms = [atom for molecule in self.molecules if molecule.type == 'clay' for atom in molecule.atoms]
-        substitution_ratio = self.s.al_mg_ratio  
-        fraction = 1 / substitution_ratio
+    def distance(self, atom1, atom2):
+        normal_distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(atom1.position, atom2.position)))
+
+        pbc_distance = []
+        for (dim_lo, dim_hi), (a, b) in zip(self.dimensions, zip(atom1.position, atom2.position)):
+            length = dim_hi - dim_lo  
+            delta = b - a
+            delta -= round(delta / length) * length
+            pbc_distance.append(delta ** 2)
         
-        cumulative_fraction = 0.0  
-        substitution_count = 0
+        pbc_distance = math.sqrt(sum(pbc_distance))
+        min_distance = min(normal_distance, pbc_distance)
+        return min_distance
+    
+    def custom_round(self, number):
+        if (number - math.floor(number)) < 0.5:
+            return int(math.floor(number))
+        else:
+            return int(math.ceil(number))
 
-        for atom in all_atoms:
-            if atom.element == 'Al':
-                cumulative_fraction += fraction
+    def mg_substitute(self):
+        random.seed(self.s.random_seed)
 
-                if cumulative_fraction >= 1:
-                    atom.element = 'Mg'
-                    substitution_count += 1
-                    cumulative_fraction -= 1 
+        all_atoms = [atom for molecule in self.molecules if molecule.type == 'clay' for atom in molecule.atoms]
+        al_atoms = [atom for atom in all_atoms if atom.element == 'Al']
 
+        substitution_ratio = self.s.al_mg_ratio  
+        total_substitutions = math.ceil((len(al_atoms) / substitution_ratio))
+
+        random.shuffle(al_atoms)
+        
+        substituted_atoms = []
+
+        for al_atom in al_atoms:
+            if len(substituted_atoms) >= total_substitutions:
+                break
+            if all(self.distance(al_atom, mg_atom) > self.s.clay_sub_cutoff for mg_atom in substituted_atoms):
+                al_atom.element = 'Mg'
+                substituted_atoms.append(al_atom)
+        
         return
+
+
+
     

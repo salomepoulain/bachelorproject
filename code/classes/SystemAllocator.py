@@ -125,20 +125,6 @@ class SystemAllocator(ClayBuilder):
                     print(f"Torsion Key: {torsion_key}, Torsion Value: {torsion_value}")
                     for atom in torsion_value.ff_atoms:
                         print(f"Atom: {atom.type}")
-    
-    def distance(self, atom1, atom2):
-        normal_distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(atom1.position, atom2.position)))
-
-        pbc_distance = []
-        for (dim_lo, dim_hi), (a, b) in zip(self.dimensions, zip(atom1.position, atom2.position)):
-            length = dim_hi - dim_lo  
-            delta = b - a
-            delta -= round(delta / length) * length
-            pbc_distance.append(delta ** 2)
-        
-        pbc_distance = math.sqrt(sum(pbc_distance))
-        min_distance = min(normal_distance, pbc_distance)
-        return min_distance
 
     def add_clay_ff(self):
         for molecule in self.molecules:

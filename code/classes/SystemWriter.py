@@ -384,7 +384,9 @@ class SystemWriter(VerticalDuplicator):
         self.data_file.write("\n")
 
     def write_data_file(self):
-        self.data_file = open("output/" + self.s.input_file + str(self.s.replication) + ".data", "w")
+        output_name = self.s.output_file if self.s.output_file is not None else self.s.input_file + str(self.s.replication)
+
+        self.data_file = open("output/" + output_name + ".data", "w")
         self.write_section(self.stored_description)
         
         self.write_section(self.stored_masses)
