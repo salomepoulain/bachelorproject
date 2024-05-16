@@ -9,9 +9,6 @@ class SolventIonAdder(SystemAllocator):
         super().__init__(settings)
         self.s = settings
 
-        self.molecules
-        self.dimensions
-
         self.system_charge = self.calculate_system_charge()
         self.ion_count = self.calculate_ion_count()
 
@@ -52,13 +49,25 @@ class SolventIonAdder(SystemAllocator):
             return zhi, zlo
         
     def translate_simulation_height(self):
-            
         clay_height = (self.get_clay_height()[0] - self.get_clay_height()[1]) / 2.0
 
-        self.dimensions = (self.dimensions[0], self.dimensions[1], (self.dimensions[2][0], self.dimensions[2][1] + self.s.water_distance))
-        self.dimensions = (self.dimensions[0], self.dimensions[1], (self.dimensions[2][0] + clay_height, self.dimensions[2][1] + clay_height))
+        if self.s.water_per_ion == 0:
+            # Add additional height for systems without water per ion
+            self.dimensions = (self.dimensions[0], self.dimensions[1], 
+                            (self.dimensions[2][0], self.dimensions[2][1] + 20))  # Example extra distance
+            self.dimensions = (self.dimensions[0], self.dimensions[1], 
+                            (self.dimensions[2][0] + clay_height, self.dimensions[2][1] + clay_height))
+            return
+        
+        self.dimensions = (self.dimensions[0], self.dimensions[1], 
+                        (self.dimensions[2][0], self.dimensions[2][1] + self.s.water_distance))
+        self.dimensions = (self.dimensions[0], self.dimensions[1], 
+                        (self.dimensions[2][0] + clay_height, self.dimensions[2][1] + clay_height))
 
     def add_solvent_box(self):
+        if self.s.water_per_ion == 0:
+            return
+
         clay_height = self.get_clay_height()[0] - self.get_clay_height()[1]
 
         waterbox = WaterBoxBuilder(self.ion_count, self.s)
@@ -72,10 +81,10 @@ class SolventIonAdder(SystemAllocator):
         for molecule in waterbox.molecules:
             self.molecules.append(molecule)
 
+    def add_ions_uniformly(self):
         self.get_unit_cell_dimensions()
         self.translate_simulation_height()
 
-    def add_ions_uniformly(self):
         if any(molecule.type == 'clay' for molecule in self.molecules):
             if self.ion_count == 0:
                 return

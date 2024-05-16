@@ -22,6 +22,8 @@ class SystemWriter(VerticalDuplicator):
         self.torsions: List[Torsion] = [torsion for molecule in self.molecules for torsion in molecule.torsions]
         self.impropers: List[Improper] = [improper for molecule in self.molecules for improper in molecule.impropers]
 
+        self.output_name = self.s.output_file if self.s.output_file is not None else self.s.input_file + str(self.s.replication)
+
         # Store all in correct order
         self.stored_description = []
         self.stored_masses = []
@@ -38,7 +40,7 @@ class SystemWriter(VerticalDuplicator):
         self.stored_impropers = []
         
         self.stored_footer = []
-
+        
         self.data_file = None
 
         # Add and write all data to file
@@ -384,9 +386,8 @@ class SystemWriter(VerticalDuplicator):
         self.data_file.write("\n")
 
     def write_data_file(self):
-        output_name = self.s.output_file if self.s.output_file is not None else self.s.input_file + str(self.s.replication)
-
-        self.data_file = open("output/" + output_name + ".data", "w")
+        
+        self.data_file = open("output/" + self.output_name + ".data", "w")
         self.write_section(self.stored_description)
         
         self.write_section(self.stored_masses)

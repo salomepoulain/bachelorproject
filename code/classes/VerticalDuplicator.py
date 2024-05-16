@@ -9,9 +9,15 @@ class VerticalDuplicator(SolventIonAdder):
         self.replicate_z_axis()
         
     def replicate_z_axis(self):
+        if self.s.replication[2] == 1:
+            return
+
         unit_z = self.dimensions[2][1] - self.dimensions[2][0]
         n_z = self.s.replication[2]
+
         original_molecules = list(self.molecules)
+
+        self.dimensions = (self.dimensions[0], self.dimensions[1], (self.dimensions[2][0], self.dimensions[2][0] + n_z * unit_z))
 
         for k in range(1, n_z):
             for molecule in original_molecules:
@@ -55,6 +61,3 @@ class VerticalDuplicator(SolventIonAdder):
                     new_molecule.add_improper(new_atom1, new_atom2, new_atom3, new_atom4, improper.ff_improper_coef)
 
                 self.molecules.append(new_molecule)
-
-        self.get_unit_cell_dimensions()
-        self.translate_simulation_height()

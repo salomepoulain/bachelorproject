@@ -15,6 +15,7 @@ class ClayBuilder():
         self.translate_to_zero()
         self.expand_and_duplicate()
         self.mg_substitute()
+        self.get_unit_cell_dimensions()
         
     def read_xyz_clay(self):
         file_path = 'unitcell/' + self.s.input_file + '.xyz'

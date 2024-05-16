@@ -48,12 +48,12 @@ from code.main_runner import main
 
 
 if __name__ == "__main__":
-    main(replication =      (6,6,1), 
+    main(replication =      (6,6,2), 
          al_mg_ratio =      6.1702509,      # Based on STx1b data (Castellini 2017) [2]
          net_charge =       0,
-         water_per_ion =    0,
+         water_per_ion =    18,
 
-         output_file =      'None',       
+         output_file =      None,       
 
          ff_atom_types =    ['ao', 
                              'mgo', 
