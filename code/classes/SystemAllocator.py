@@ -1,56 +1,86 @@
 from code.classes.SystemParts import Molecule
 from code.classes.ClayBuilder import ClayBuilder
 from code.classes.ForceFieldLoader import ForceFieldLoader
-from typing import List
-import math
+from typing import Dict, List, Set, Tuple
 from itertools import combinations, permutations, product
 
+"""
+This script defines the SystemAllocator class, which is responsible for allocating force field
+parameters to atoms in the system based on input settings. The class allocates force field
+parameters for clay atoms, water molecules, and ions, and adds bonds, angles, torsions, and
+impropers to the system based on the allocated parameters.
+"""
+
 class SystemAllocator(ClayBuilder):
-    def __init__(self, settings):
+    def __init__(self, settings) -> None:
+        """
+        Initialize the SystemAllocator with the given settings and allocate force field attributes.
+
+        Args:
+            settings (ChosenSettings): The settings object containing various parameters.
+        """
         super().__init__(settings)
-
         self.s = settings
-
         self.forcefieldloader = ForceFieldLoader(self.s)
-
         self.ff_attributes = self.add_ff_attributes()
         self.preprocess_all()
-
         self.process_types = {'clay'}
         self.allocate_ff_atoms(self.process_types)
         self.allocate_bonds(self.process_types)
 
-    def add_ff_attributes(self):
+    def add_ff_attributes(self) -> Dict[str, Dict]:
+        """
+        Add force field attributes for all specified atom types.
+
+        Returns:
+            Dict[str, Dict]: A dictionary containing force field parameters for each atom type.
+        """
         super_dictionary = {}
         for ff_type in self.s.ff_atom_types:
             dictionary = self.forcefieldloader.get_info_by_type(ff_type)
             super_dictionary[ff_type] = dictionary
         return super_dictionary
 
-    def allocate_ff_atoms(self, process_types):
+    def allocate_ff_atoms(self, process_types: Set[str]) -> None:
+        """
+        Allocate force field atoms based on process types.
+
+        Args:
+            process_types (Set[str]): The set of process types to allocate force field atoms for.
+        """
         if 'clay' in process_types:
             self.add_clay_ff()
             self.add_clay_ff_oxygens()
-
         if 'water' in process_types:
             self.add_solvent()
-
         if 'ion' in process_types:
             self.add_ions()
 
-    def allocate_bonds(self, process_types):
+    def allocate_bonds(self, process_types: Set[str]) -> None:
+        """
+        Allocate bonds, angles, torsions, and impropers based on process types.
+
+        Args:
+            process_types (Set[str]): The set of process types to allocate bonds for.
+        """
         for process_type in process_types:
             self.add_bonds(process_type)
             self.add_angles(process_type)
             self.add_torsion(process_type)
             self.add_improper(process_type)
 
-    def preprocess_all(self):
+    def preprocess_all(self) -> None:
+        """
+        Preprocess bond, angle, and torsion coefficients for efficient lookup.
+        """
         self.preprocess_bond_coefs()
         self.preprocess_angle_coefs()
         self.preprocess_torsion_coefs()
 
-    def preprocess_bond_coefs(self):
+    def preprocess_bond_coefs(self) -> None:
+        """
+        Preprocess bond coefficients and store them in a dictionary.
+        """
         for key, attributes in self.ff_attributes.items():
             if "bond_coef" in attributes:
                 bond_dict = {}
@@ -59,7 +89,10 @@ class SystemAllocator(ClayBuilder):
                     bond_dict[pair] = bond
                 self.ff_attributes[key]["bond_coef"] = bond_dict
 
-    def preprocess_angle_coefs(self):
+    def preprocess_angle_coefs(self) -> None:
+        """
+        Preprocess angle coefficients and store them in a dictionary.
+        """
         for key, attributes in self.ff_attributes.items():
             if "angle_coef" in attributes:
                 angle_dict = {}
@@ -73,21 +106,10 @@ class SystemAllocator(ClayBuilder):
                     angle_dict[angle_key] = angle
                 self.ff_attributes[key]["angle_coef"] = angle_dict
 
-    def preprocess_torsion_coefs(self):
-        for key, attributes in self.ff_attributes.items():
-            if "torsion_coef" in attributes:
-                torsion_dict = {}
-                for torsion in attributes["torsion_coef"]:
-                    atoms = torsion.ff_atoms
-                    if len(atoms) == 4:
-                        sorted_ends = sorted([atoms[0].type, atoms[3].type])
-                        torsion_key = (sorted_ends[0], atoms[1].type, atoms[2].type, sorted_ends[1])
-                    else:
-                        continue
-                    torsion_dict[torsion_key] = torsion
-                self.ff_attributes[key]["torsion_coef"] = torsion_dict
-
-    def preprocess_torsion_coefs(self):
+    def preprocess_torsion_coefs(self) -> None:
+        """
+        Preprocess torsion coefficients and store them in a dictionary, including wildcard combinations.
+        """
         for key, attributes in self.ff_attributes.items():
             if "torsion_coef" in attributes:
                 torsion_dict = {}
@@ -114,39 +136,26 @@ class SystemAllocator(ClayBuilder):
 
                 self.ff_attributes[key]["torsion_coef"] = torsion_dict
 
-        # self.print_torsion_dict()
-
-    def print_torsion_dict(self):
-        for key, attributes in self.ff_attributes.items():
-            if "torsion_coef" in attributes:
-                print(f"Torsion Coefficients for {key}:")
-                torsion_dict = attributes["torsion_coef"]
-                for torsion_key, torsion_value in torsion_dict.items():
-                    print(f"Torsion Key: {torsion_key}, Torsion Value: {torsion_value}")
-                    for atom in torsion_value.ff_atoms:
-                        print(f"Atom: {atom.type}")
-
-    def add_clay_ff(self):
+    def add_clay_ff(self) -> None:
+        """
+        Assign force field parameters to clay atoms based on their element type.
+        """
         for molecule in self.molecules:
             if molecule.type == "clay":
                 for atom in molecule.atoms:
-                    # Al aluminiums are octahedral aluminums
                     if atom.element == "Al":
                         atom.ff_atom = self.ff_attributes["ao"]["ff_atom"]
-
-                    # Mg magnesiums are octahedral magnesiums
                     if atom.element == "Mg":
                         atom.ff_atom = self.ff_attributes["mgo"]["ff_atom"]
-
-                    # Si silicons are tetrahedral silicons
                     if atom.element == "Si":
                         atom.ff_atom = self.ff_attributes["st"]["ff_atom"]
-
-                    # Hydrogens are hydroxyl hydrogens
                     if atom.element == "H":
                         atom.ff_atom = self.ff_attributes["ho"]["ff_atom"]
 
-    def add_clay_ff_oxygens(self):
+    def add_clay_ff_oxygens(self) -> None:
+        """
+        Assign force field parameters to oxygen atoms in clay based on their position and nearby atoms.
+        """
         for molecule in self.molecules:
             if molecule.type == "clay":
                 min_z, max_z = self.find_min_max_z_for_molecule(molecule)
@@ -162,13 +171,33 @@ class SystemAllocator(ClayBuilder):
 
                 for row in height_dictionary:
                     for oxygen_atom in height_dictionary[row]:
-                        close_to_magnesium = any(atom.element == "Mg" and self.distance(oxygen_atom, atom) <= self.s.mg_cutoff for atom in molecule.atoms)
-                        close_to_hydrogen = any(atom.element == "H" and self.distance(oxygen_atom, atom) <= self.s.h_cutoff for atom in molecule.atoms)
-                        ff_type = 'ob' if row in [0, 3] else ('ohs' if close_to_magnesium and close_to_hydrogen else 'obos' if close_to_magnesium else 'oh' if close_to_hydrogen else 'ob')
+                        close_to_magnesium = any(
+                            atom.element == "Mg" and self.distance(oxygen_atom, atom) <= self.s.mg_cutoff
+                            for atom in molecule.atoms
+                        )
+                        close_to_hydrogen = any(
+                            atom.element == "H" and self.distance(oxygen_atom, atom) <= self.s.h_cutoff
+                            for atom in molecule.atoms
+                        )
+                        ff_type = 'ob' if row in [0, 3] else (
+                            'ohs' if close_to_magnesium and close_to_hydrogen else 
+                            'obos' if close_to_magnesium else 
+                            'oh' if close_to_hydrogen else 
+                            'ob'
+                        )
                         
                         oxygen_atom.ff_atom = self.ff_attributes[ff_type]["ff_atom"]
 
-    def find_min_max_z_for_molecule(self, molecule):
+    def find_min_max_z_for_molecule(self, molecule: Molecule) -> Tuple[float, float]:
+        """
+        Find the minimum and maximum z-coordinates for oxygen atoms in a molecule.
+
+        Args:
+            molecule (Molecule): The molecule to analyze.
+
+        Returns:
+            Tuple[float, float]: The minimum and maximum z-coordinates.
+        """
         min_z = float('inf')
         max_z = float('-inf')
         for atom in molecule.atoms:
@@ -180,7 +209,10 @@ class SystemAllocator(ClayBuilder):
                     max_z = z_position
         return min_z, max_z
 
-    def add_solvent(self):
+    def add_solvent(self) -> None:
+        """
+        Assign force field parameters to water molecules.
+        """
         for molecule in self.molecules:
             if molecule.type == "water":
                 for atom in molecule.atoms:
@@ -189,13 +221,22 @@ class SystemAllocator(ClayBuilder):
                     if atom.element == "H":
                         atom.ff_atom = self.ff_attributes["h*"]["ff_atom"]
                             
-    def add_ions(self):
+    def add_ions(self) -> None:
+        """
+        Assign force field parameters to ions.
+        """
         for molecule in self.molecules:
             if molecule.type == "ion":
                 if molecule.atoms[0].element == "Ca":
                     molecule.atoms[0].ff_atom = self.ff_attributes["Ca"]["ff_atom"]
 
-    def add_bonds(self, process_type):
+    def add_bonds(self, process_type: str) -> None:
+        """
+        Add bonds to molecules based on force field parameters.
+
+        Args:
+            process_type (str): The type of molecules to process.
+        """
         for molecule in self.molecules:
             if molecule.type != process_type:
                 continue
@@ -231,7 +272,13 @@ class SystemAllocator(ClayBuilder):
                 if bond_coef:
                     molecule.add_bond(atom1, atom2, bond_coef)
         
-    def add_angles(self, process_type):
+    def add_angles(self, process_type: str) -> None:
+        """
+        Add angles to molecules based on force field parameters.
+
+        Args:
+            process_type (str): The type of molecules to process.
+        """
         for molecule in self.molecules:
             if molecule.type != process_type:
                 continue
@@ -263,8 +310,13 @@ class SystemAllocator(ClayBuilder):
                 if angle_coef:
                     molecule.add_angle(first_atom, central_atom, last_atom, angle_coef)
 
+    def add_torsion(self, process_type: str) -> None:
+        """
+        Add torsions to molecules based on force field parameters.
 
-    def add_torsion(self, process_type):
+        Args:
+            process_type (str): The type of molecules to process.
+        """
         for molecule in self.molecules:
             if molecule.type != process_type:
                 continue
@@ -300,13 +352,16 @@ class SystemAllocator(ClayBuilder):
                 if torsion_coef:
                     molecule.add_torsion(*torsion_atoms, torsion_coef)
 
-    def add_improper(self, process_type):
+    def add_improper(self, process_type: str) -> None:
+        """
+        Add improper torsions to molecules based on force field parameters.
+
+        Args:
+            process_type (str): The type of molecules to process.
+        """
         for molecule in self.molecules:
             if molecule.type != "clay":
                 continue
 
-
-
-   
-
-    
+            # Placeholder for actual implementation
+            # Here you can implement the logic for adding improper torsions based on the given process_type

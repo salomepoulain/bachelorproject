@@ -1,22 +1,36 @@
 from code.classes.SolventIonAdder import SolventIonAdder
 from code.classes.SystemParts import Molecule, Atom
 
+"""
+This module defines the VerticalDuplicator class, which is responsible for replicating
+the molecules along the z-axis based on the replication factor provided in the settings.
+The class extends the SolventIonAdder class and overrides the replicate_z_axis method.
+The charge of the first layer is also duplicated to the new layers.
+"""
+
 class VerticalDuplicator(SolventIonAdder):
-    def __init__(self, settings):
+
+    def __init__(self, settings) -> None:
         super().__init__(settings)
         self.s = settings
 
         self.replicate_z_axis()
+
+        self.final_charge = self.calculate_system_charge()
         
-    def replicate_z_axis(self):
+    def replicate_z_axis(self) -> None:
+        """
+        Replicates the molecules along the z-axis based on the replication factor provided in settings.
+        """
         if self.s.replication[2] == 1:
             return
 
-        unit_z = self.dimensions[2][1] - self.dimensions[2][0]
-        n_z = self.s.replication[2]
+        unit_z: float = self.dimensions[2][1] - self.dimensions[2][0]
+        n_z: int = self.s.replication[2]
 
         original_molecules = list(self.molecules)
 
+        # Update dimensions for the new replicated system
         self.dimensions = (self.dimensions[0], self.dimensions[1], (self.dimensions[2][0], self.dimensions[2][0] + n_z * unit_z))
 
         for k in range(1, n_z):

@@ -1,4 +1,9 @@
 
+"""
+This script is used to test the ForceFieldLoader class in the forcefield_loader.py script.
+Just copy and paste this script into the ForceFieldLoader.py script and run it to test the class.
+"""
+
 def test_forcefield_params():
     # Create an instance of the ForceFieldLoader
     ff_params = ForceFieldLoader()

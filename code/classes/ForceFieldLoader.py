@@ -1,3 +1,5 @@
+from typing import Tuple
+
 """
 Force Field Loader Module for Molecular Dynamics Simulations
 
@@ -9,19 +11,25 @@ Description:
     - also works with only one file
     - loads atom types, equivalences, pair_coef, bond_coef, angle_coef, torsion_coef, improper_coef parameters
     - pair_coef parameters are converted to give sigma and epsilon values
-    - 2k values are devided by 2 to get k values
+    - 2k values are divided by 2 to get k values
     - cvff equivalences are used to ensure all atom types are represented in the force field parameters
     - checks for duplicate atom types and appends '[dup_#]' to the type if a duplicate is found, 
         with the second file iteration. FF_atom.type are thus unique identifiers
     - for torsion_coefs, '*' is used to represent a wildcard atom type
 """
+
 from code.classes.SystemParts import FF_atom, FF_pair_coef, FF_bond_coef, FF_angle_coef, FF_torsion_coef, FF_improper_coef, FF_equivalence
 from code.classes.ChosenSettings import ChosenSettings
-from typing import List, Set
+from typing import List, Set, Dict, Optional
 
+class ForceFieldLoader:
+    def __init__(self, settings: ChosenSettings) -> None:
+        """
+        Initialize the ForceFieldLoader with the given settings.
 
-class ForceFieldLoader():
-    def __init__(self, settings) -> None:
+        Args:
+            settings (ChosenSettings): The settings object containing various parameters.
+        """
         self.s = settings
 
         self.ff_atoms: List[FF_atom] = []
@@ -35,7 +43,10 @@ class ForceFieldLoader():
 
         self.load_all_forcefield_params()
 
-    def load_all_forcefield_params(self):
+    def load_all_forcefield_params(self) -> None:
+        """
+        Load all force field parameters from the specified files.
+        """
         i = 0
         files = [f"forcefields/{name}.frc" for name in self.s.ff_files]
         for file_path in files:
@@ -60,7 +71,16 @@ class ForceFieldLoader():
 
             i += 1
 
-    def get_info_by_type(self, identifier: str):
+    def get_info_by_type(self, identifier: str) -> Dict[str, Optional[object]]:
+        """
+        Get information related to a specific atom type.
+
+        Args:
+            identifier (str): The atom type identifier.
+
+        Returns:
+            Dict[str, Optional[object]]: A dictionary containing related force field parameters.
+        """
         results = {
             "ff_atom": None,
             "pair_coef": None,
@@ -96,25 +116,43 @@ class ForceFieldLoader():
         
         return results
 
-    def find_ff_atom(self, str, i):
-        if i > 0 and str in self.duplicates:
-            str += f'[dup{i}]'
+    def find_ff_atom(self, atom_type: str, iteration: int) -> Optional[FF_atom]:
+        """
+        Find an FF_atom by its type, considering duplicates.
 
-        if str == '*':
+        Args:
+            atom_type (str): The atom type.
+            iteration (int): The current file iteration index.
+
+        Returns:
+            Optional[FF_atom]: The found FF_atom object or None.
+        """
+        if iteration > 0 and atom_type in self.duplicates:
+            atom_type += f'[dup{iteration}]'
+
+        if atom_type == '*':
             ff_atom = FF_atom()
             ff_atom.type = '*'
             return ff_atom
 
         for ff_atom in self.ff_atoms:
-            if ff_atom.type == str:
+            if ff_atom.type == atom_type:
                 return ff_atom
-            
-    def read_ff_atom_types(self, file_path, i):
+
+        return None
+
+    def read_ff_atom_types(self, file_path: str, iteration: int) -> None:
+        """
+        Read force field atom types from a file.
+
+        Args:
+            file_path (str): Path to the force field file.
+            iteration (int): The current file iteration index.
+        """
         start_processing = False
         with open(file_path, 'r') as file:
             for line in file:
-
-                if line.startswith('#') and start_processing == True:
+                if line.startswith('#') and start_processing:
                     return
 
                 if line.startswith('!') or line.strip() == '' or line.startswith('>'):
@@ -132,9 +170,7 @@ class ForceFieldLoader():
 
                     try:
                         ff_atom.connections = int(parts[5]) if parts[5] else None
-                    except IndexError:  
-                        ff_atom.connections = None
-                    except ValueError:
+                    except (IndexError, ValueError):
                         ff_atom.connections = None
 
                     try:
@@ -143,16 +179,22 @@ class ForceFieldLoader():
                         ff_atom.description = ' '.join(parts[6:-1])
                     except ValueError:
                         ff_atom.description = ' '.join(parts[6:])
-                        pass
-                    
+
                     existing_types = {ff_atom.type for ff_atom in self.ff_atoms}
                     if ff_atom.type in existing_types:
                         self.duplicates.add(ff_atom.type)
-                        ff_atom.type += f'[dup{i}]'
+                        ff_atom.type += f'[dup{iteration}]'
                     
                     self.ff_atoms.append(ff_atom)
 
-    def read_ff_equivalences(self, file_path, i):
+    def read_ff_equivalences(self, file_path: str, iteration: int) -> None:
+        """
+        Read force field equivalences from a file.
+
+        Args:
+            file_path (str): Path to the force field file.
+            iteration (int): The current file iteration index.
+        """
         start_processing = False
         with open(file_path, 'r') as file:
             for line in file:
@@ -168,21 +210,28 @@ class ForceFieldLoader():
                     parts = line.strip().split()
 
                     ff_equivalence = FF_equivalence()
-                    ff_equivalence.ff_atom = self.find_ff_atom(parts[2], i)
-                    ff_equivalence.pair_coef = self.find_ff_atom(parts[3], i)
-                    ff_equivalence.bond_coef = self.find_ff_atom(parts[4], i)
-                    ff_equivalence.angle_coef = self.find_ff_atom(parts[5], i)
-                    ff_equivalence.torsion_coef = self.find_ff_atom(parts[6], i)
-                    ff_equivalence.improper_coef = self.find_ff_atom(parts[7], i)
+                    ff_equivalence.ff_atom = self.find_ff_atom(parts[2], iteration)
+                    ff_equivalence.pair_coef = self.find_ff_atom(parts[3], iteration)
+                    ff_equivalence.bond_coef = self.find_ff_atom(parts[4], iteration)
+                    ff_equivalence.angle_coef = self.find_ff_atom(parts[5], iteration)
+                    ff_equivalence.torsion_coef = self.find_ff_atom(parts[6], iteration)
+                    ff_equivalence.improper_coef = self.find_ff_atom(parts[7], iteration)
                     
                     if ff_equivalence.ff_atom is not None:
                         self.ff_equivalences.append(ff_equivalence)
 
-    def read_ff_pair_coef(self, file_path, i):
+    def read_ff_pair_coef(self, file_path: str, iteration: int) -> None:
+        """
+        Read force field pair coefficients from a file.
 
-        def calculate_sigma_epsilon(A, B):
+        Args:
+            file_path (str): Path to the force field file.
+            iteration (int): The current file iteration index.
+        """
+
+        def calculate_sigma_epsilon(A: float, B: float) -> Tuple[float, float]:
             if A == 0 or B == 0:
-                return 0, 0  
+                return 0.0, 0.0
             sigma = (A / B) ** (1/6)
             epsilon = B / (4 * sigma**6)
             return sigma, epsilon
@@ -190,8 +239,7 @@ class ForceFieldLoader():
         start_processing = False
         with open(file_path, 'r') as file:
             for line in file:
-
-                if line.startswith('#') and start_processing == True:
+                if line.startswith('#') and start_processing:
                     return
 
                 if line.startswith('!') or line.strip() == '' or line.startswith('>') or line.startswith('@'):
@@ -203,18 +251,24 @@ class ForceFieldLoader():
                 if start_processing:
                     parts = line.strip().split()
                     ff_pair_coef = FF_pair_coef()
-                    ff_pair_coef.ff_atom = self.find_ff_atom(parts[2], i)
+                    ff_pair_coef.ff_atom = self.find_ff_atom(parts[2], iteration)
                     A, B = float(parts[3]), float(parts[4])
                     ff_pair_coef.sigma, ff_pair_coef.epsilon = calculate_sigma_epsilon(A, B)
                     
                     self.pair_coefs.append(ff_pair_coef)
 
-    def read_ff_bond(self, file_path, i):
+    def read_ff_bond(self, file_path: str, iteration: int) -> None:
+        """
+        Read force field bond coefficients from a file.
+
+        Args:
+            file_path (str): Path to the force field file.
+            iteration (int): The current file iteration index.
+        """
         start_processing = False
         with open(file_path, 'r') as file:
             for line in file:
-
-                if line.startswith('#') and start_processing == True:
+                if line.startswith('#') and start_processing:
                     return
 
                 if line.startswith('!') or line.strip() == '' or line.startswith('>') or line.startswith('@'):
@@ -227,18 +281,24 @@ class ForceFieldLoader():
                     parts = line.strip().split()
 
                     ff_bond = FF_bond_coef()
-                    ff_bond.ff_atoms = [self.find_ff_atom(parts[2], i), self.find_ff_atom(parts[3], i)]
+                    ff_bond.ff_atoms = [self.find_ff_atom(parts[2], iteration), self.find_ff_atom(parts[3], iteration)]
                     ff_bond.r0 = float(parts[4])
                     ff_bond.k = float(parts[5])
                     
                     self.bond_coefs.append(ff_bond)
 
-    def read_ff_angle(self, file_path, i):
+    def read_ff_angle(self, file_path: str, iteration: int) -> None:
+        """
+        Read force field angle coefficients from a file.
+
+        Args:
+            file_path (str): Path to the force field file.
+            iteration (int): The current file iteration index.
+        """
         start_processing = False
         with open(file_path, 'r') as file:
             for line in file:
-
-                if line.startswith('#') and start_processing == True:
+                if line.startswith('#') and start_processing:
                     return
 
                 if line.startswith('!') or line.strip() == '' or line.startswith('>') or line.startswith('@'):
@@ -251,18 +311,24 @@ class ForceFieldLoader():
                     parts = line.strip().split()
 
                     ff_angle = FF_angle_coef()
-                    ff_angle.ff_atoms = [self.find_ff_atom(parts[2],i), self.find_ff_atom(parts[3],i), self.find_ff_atom(parts[4],i)]
+                    ff_angle.ff_atoms = [self.find_ff_atom(parts[2], iteration), self.find_ff_atom(parts[3], iteration), self.find_ff_atom(parts[4], iteration)]
                     ff_angle.theta0 = float(parts[5])
                     ff_angle.k = float(parts[6])
                     
                     self.angle_coefs.append(ff_angle)
 
-    def read_ff_torsion(self, file_path, i):
+    def read_ff_torsion(self, file_path: str, iteration: int) -> None:
+        """
+        Read force field torsion coefficients from a file.
+
+        Args:
+            file_path (str): Path to the force field file.
+            iteration (int): The current file iteration index.
+        """
         start_processing = False
         with open(file_path, 'r') as file:
             for line in file:
-
-                if line.startswith('#') and start_processing == True:
+                if line.startswith('#') and start_processing:
                     return
 
                 if line.startswith('!') or line.strip() == '' or line.startswith('>') or line.startswith('@'):
@@ -275,19 +341,25 @@ class ForceFieldLoader():
                     parts = line.strip().split()
 
                     ff_torsion = FF_torsion_coef()
-                    ff_torsion.ff_atoms = [self.find_ff_atom(parts[2],i), self.find_ff_atom(parts[3],i), self.find_ff_atom(parts[4],i), self.find_ff_atom(parts[5],i)]
+                    ff_torsion.ff_atoms = [self.find_ff_atom(parts[2], iteration), self.find_ff_atom(parts[3], iteration), self.find_ff_atom(parts[4], iteration), self.find_ff_atom(parts[5], iteration)]
                     ff_torsion.kphi = float(parts[6])
                     ff_torsion.phi0 = float(parts[8])
                     ff_torsion.n = int(parts[7])
                     
                     self.torsion_coefs.append(ff_torsion)
 
-    def read_ff_improper(self, file_path, i):
+    def read_ff_improper(self, file_path: str, iteration: int) -> None:
+        """
+        Read force field improper coefficients from a file.
+
+        Args:
+            file_path (str): Path to the force field file.
+            iteration (int): The current file iteration index.
+        """
         start_processing = False
         with open(file_path, 'r') as file:
             for line in file:
-
-                if line.startswith('#') and start_processing == True:
+                if line.startswith('#') and start_processing:
                     return
 
                 if line.startswith('!') or line.strip() == '' or line.startswith('>') or line.startswith('@'):
@@ -300,16 +372,17 @@ class ForceFieldLoader():
                     parts = line.strip().split()
 
                     ff_improper = FF_improper_coef()
-
-                    ff_improper.ff_atoms = [self.find_ff_atom(parts[2],i), self.find_ff_atom(parts[3],i), self.find_ff_atom(parts[4],i), self.find_ff_atom(parts[5],i)]
+                    ff_improper.ff_atoms = [self.find_ff_atom(parts[2], iteration), self.find_ff_atom(parts[3], iteration), self.find_ff_atom(parts[4], iteration), self.find_ff_atom(parts[5], iteration)]
                     ff_improper.kchi = float(parts[6])
                     ff_improper.n = int(parts[7])
                     ff_improper.chi0 = float(parts[8])
                     
                     self.improper_coefs.append(ff_improper)
-    
 
-    def add_pair_coef_equivalences(self):
+    def add_pair_coef_equivalences(self) -> None:
+        """
+        Add pair coefficients based on equivalences.
+        """
         equivalences = [equivalence for equivalence in self.ff_equivalences]
         non_bonds = [pair_coef.ff_atom for pair_coef in self.pair_coefs]
 
@@ -327,7 +400,10 @@ class ForceFieldLoader():
                 if new_ff_pair_coef.sigma is not None and new_ff_pair_coef.epsilon is not None:  
                     self.pair_coefs.append(new_ff_pair_coef)
             
-    def add_bond_equivalences(self):
+    def add_bond_equivalences(self) -> None:
+        """
+        Add bond coefficients based on equivalences.
+        """
         equivalences = [equivalence for equivalence in self.ff_equivalences]
         bond_atoms = [atom for bond_coef in self.bond_coefs for atom in bond_coef.ff_atoms]
 
@@ -356,7 +432,10 @@ class ForceFieldLoader():
                 if new_ff_bond.ff_atoms is not None:           
                     self.bond_coefs.append(new_ff_bond)
 
-    def add_angle_equivalences(self):
+    def add_angle_equivalences(self) -> None:
+        """
+        Add angle coefficients based on equivalences.
+        """
         angle_atoms = {atom for angle_coef in self.angle_coefs for atom in angle_coef.ff_atoms}
 
         remaining_equivalences = [
@@ -384,7 +463,10 @@ class ForceFieldLoader():
             if new_ff_angle.ff_atoms:
                 self.angle_coefs.append(new_ff_angle)
 
-    def add_torsion_equivalences(self):
+    def add_torsion_equivalences(self) -> None:
+        """
+        Add torsion coefficients based on equivalences.
+        """
         torsion_atoms = {atom for torsion_coef in self.torsion_coefs for atom in torsion_coef.ff_atoms}
 
         remaining_equivalences = [
@@ -414,7 +496,10 @@ class ForceFieldLoader():
             if new_ff_torsion.ff_atoms:
                 self.torsion_coefs.append(new_ff_torsion)
 
-    def add_improper_equivalences(self):
+    def add_improper_equivalences(self) -> None:
+        """
+        Add improper coefficients based on equivalences.
+        """
         improper_atoms = {atom for improper_coef in self.improper_coefs for atom in improper_coef.ff_atoms}
         remaining_equivalences = [
             equivalence for equivalence in self.ff_equivalences
@@ -443,14 +528,12 @@ class ForceFieldLoader():
             if new_ff_improper.ff_atoms:
                 self.improper_coefs.append(new_ff_improper)
 
-    def add_pair_coefs_for_ff_types(self):
+    def add_pair_coefs_for_ff_types(self) -> None:
+        """
+        Assign pair coefficients to each FF_atom.
+        """
         for ff_atom in self.ff_atoms:
             for pair_coef in self.pair_coefs:
                 if pair_coef.ff_atom == ff_atom:
                     ff_atom.ff_pair_coef = pair_coef
                     break
-            
-            
-
-
-

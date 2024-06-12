@@ -1,4 +1,8 @@
 
+"""
+This class is used to store the chosen settings for the simulation.
+"""
+
 class ChosenSettings:
     def __init__(self, 
                  replication, 

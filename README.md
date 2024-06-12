@@ -21,7 +21,7 @@
 
 # LAMMPS MT DATA FILE GENERATOR FOR BACHELORPROJECT 2024
 
-Understanding clays, namely smectites, might give insight into the origin of life. It has been shown that amino acid may adsorb to the surface area of the clay within the interlayer space, particulary on Montmorrilonite (MT). Molecular Dynamic simulations can give greater insight. A forcefield called 'CLAYFF' works particulary well for clay simulations, and works together with CVFF. This forcefield requires LAMMPS to run the simulation. For this simulation to be ran, a .DATA file is necessary, storing all information and parameters of the required system. Using an Object Oriented approach with python, this code helps to easily generate a .DATA file, with various parameters and options.
+Understanding clays, namely smectites, might give insight into the origin of life. It has been shown that amino acids like lysine may adsorb to the surface area of the clay within the interlayer space, particulary on Montmorrilonite (MT). Molecular Dynamic simulations can give greater insight into the swelling behavious and adsorption process. A forcefield called 'CLAYFF' works particulary well for clay simulations, and works together with CVFF. This forcefield requires LAMMPS to run the simulation. For this simulation to be ran, a .DATA file is necessary, storing all information and parameters of the required system. Using an Object Oriented approach with python, this code helps to easily generate a .DATA file, with various parameters and options.
 
 ***
 
@@ -37,7 +37,7 @@ Here is a visualization of the most important folders and files:
 - **/unitcell**: contains the .xyz file(s) for the starting unit cell
 - **/water**: contains files nessecary for adding water solvent based of GROMACS spc2016
 - **/forcefields**: contains the .frc raw forcefield files
-- **/misc**: contains miscelanious items (tests, unused functions, banner)
+- **/misc**: contains miscelanious items (tests, unused functions, banner, UML)
 - **/output**: place where the .data files are stored after the code is done running
 
 ***
@@ -62,44 +62,47 @@ Here is a visualization of the most important folders and files:
 - `FF_improper_coef`: information on bond specific improper definition based on forcefield
 
 #### INITIALISATION
-- `SystemBuilder`: builds the system by replicating it, creating a specified height for the interlayer space, adding ions to specified ratio, adding mg substitutes by specified ratio, and solvating it.
-- `WaterBuilder`: creates the solvent within the interlayer space of the clay based on the GROMACS method, using specified vdw radii
+- `ChosenSettings`: stores all inital system setting chosen by main.
+- `ClayBuilder`: builds the system by repliating it in x and y direction, adding mg substitutes by specified ratio via random seed. Allocates the specified forcefield using SystemAllocator.
+- `SolventIonAdder`: adds ions based on ending net charge by distributing them in a grid pattern. Adds water using a WaterBoxBuilder class. Allocates new parts with SystemAllocator
+- `SystemBoxBuilder`: contains methods to add the right amount of water per ion using by duplicating the existing reference water model spc216 and then randomly deleting water molecules if necessary.
+- `VerticalDuplicator`: duplicates the entire created system vertically, if chosen, to increase clay layers. Note: Ions are duplicated as well, this might effect the final charge differing from chosen charge.
 
 #### PROCESSING
 - `ForceFieldLoader`: reads all specified .frc files and creates FF objects. All FF_atom.type's are made unique (i.e. 'ao' 'oh')
-- `SystemAllocator`: hardcoded functions to allocate right FF_Atom to specific atoms. Bonds, angles, (torsions, impropers) are then automatically created based on cutoff distance within each molecule. This part contains the only hardcoded section.
+- `SystemAllocator`: hardcoded functions to allocate right FF_Atom to specific atoms. Bonds, angles, (torsions, impropers are yet to be implemented) are then automatically created based on cutoff distance within each molecule. This part contains the only hardcoded section.
 
 #### WRITING OUT
-- `SystemWriter`: Gives all processed data an unique identifyer, stores the information in the system based on the right LAMMPS .data file order, and then writes out the data file<br>
+- `SystemWriter`: Gives all processed data an unique identifyer, stores the information in the system based on the right LAMMPS .data file order, and then writes out the data file with a footer containing all chosen settings and additional information.<br>
 
 [*] Note: The word 'Molecule' is used to distinct different entities in the system, but in reality not all entities are molecules (like the clay)
+
+For more information about the classes, a UML is found in **/misc** 
 
 ***
 
 ### USAGE
 
-- Specify your parameters manually within python main.py:
+- `python main.py` Runs default settings
+- `python main.py` `[OPTIONS]`
+
+- OPTIONS: <br>
+    `-r`, `--replication_factor` `<int>`...   Replication factor for dimensions (up to 3 values)<br>
+    `-w`, `--water_per_ion` `<float>`         Water per ion<br>
+    `-o`, `--output_file` `<str>`             Output file name (optional)<br>
+
+- Or manually change the default settings in main.py
 
 ```python
 if __name__ == "__main__":
-    main(input_file =       'STx_prot',     
-         replication =      (4,4), 
-         height =           30,
-         al_mg_ratio =      7.1702509,     
-         ca_si_ratio =      0.055125,      
-         
-         water_file =       'spc216',
-         vdw_radii_file =   'vdwradaii',
-         vdw_def_radius =    1.05,         
-         vdw_def_scale =     5.70,          
+    main(replication =      (6,6,2), 
+         al_mg_ratio =      6.1702509,      # Based on STx1b data (Castellini 2017) [2]
+         net_charge =       0,
+         water_per_ion =    18,
 
-         ff_files =         ['clayff', 
-                             'cvff'],
-         mg_cutoff =        2.0,        
-         h_cutoff =         1.0,       
-         bond_cutoff =      1.5,      
+         output_file =      None,       
 
-         ff_params =        ['ao', 
+         ff_atom_types =    ['ao', 
                              'mgo', 
                              'st', 
                              'ho', 
@@ -108,14 +111,28 @@ if __name__ == "__main__":
                              'obos', 
                              'oh', 
                              'Ca', 
-                             'o*',         
-                             'h*'          
-                            ])   
+                             'o*',           # SPC water model
+                             'h*',           # SPC water model,
+                            ],
+
+         clay_sub_cutoff =  5,
+         random_seed =      42,
+         water_distance =   4,
+         mg_cutoff =        2.0,
+         h_cutoff =         1.0,                   
+         bond_cutoff =      1.5,
+
+         input_file =       'STx_prot',     # Contains protonated unit cell from www.charmm-gui.org [1]
+         ff_files =         ['clayff',
+                            'cvff'],
+         water_file =       'szscerba'
+                            )   
 ```
 
 - It then shows the logo followed by a message after it is finished creating the output file
 - By a system larger than 4x4, a loading icon is being shown
-- When writing 'python main.py *number*' in cmd line, it should run a *number* x *number* replication system with the other settings within python.py
+- Prints out final message with system information
+- .DATA file is stored in ***\output***
 
 ***
 
@@ -130,39 +147,10 @@ if __name__ == "__main__":
 #### .DATA file as text
 
 ```
-# --------------------------------------------------------------
-# Generated DATA file using 'LAMMPS MT DATA FILE GENERATOR'
-#
-# Input file:                STx_prot
-# Replication:               3x3
-# Interlayer height:         30 Angstroms
-# Al/Mg Ratio:               7.1702509
-# Ca/Si Ratio:               0.055125
-# Water file used:           spc216
-# vdW radii file:            vdwradaii
-# Default vdW radius:        1.05
-# Default vdW scale:         5.7
-# Force fields used:         clayff, cvff
-# Mg cutoff distance:        2.0 Angstroms
-# H cutoff distance:         1.0 Angstroms
-# Bond cutoff distance:      1.5 Angstroms
-# Force field parameters:
-#                            - ao
-#                            - mgo
-#                            - st
-#                            - ho
-#                            - ob
-#                            - ohs
-#                            - obos
-#                            - oh
-#                            - Ca
-#                            - o*
-#                            - h*
-# --------------------------------------------------------------
-
-673 atoms
-242 bonds
-103 angles
+Generated DATA file using 'LAMMPS MT DATA FILE GENERATOR'
+4200 atoms
+1152 bonds
+432 angles
 0 dihedrals
 0 impropers
 
@@ -172,9 +160,9 @@ if __name__ == "__main__":
 0 dihedral types
 0 improper types
 
-0.0                  15.036000000000001   xlo xhi
-0.0                  26.499000000000002   ylo yhi
-3.3645000000000005   33.3645              zlo zhi
+0.0                  30.072000000000003   xlo xhi
+0.0                  52.998               ylo yhi
+3.3645000000000005   78.81249977120001    zlo zhi
 
 
 Masses
@@ -274,6 +262,50 @@ Angles
 102	1	665	664	666
 103	1	668	667	669
 
+# ---------------------------------------------------------------
+# replication:       6x6x2
+# al_mg_ratio:       6.1702509
+# net_charge:        0
+# seed:              42
+# water_per_ion:     18
+# water_distance:    4 Angstroms
+# mg_cutoff:         2.0 Angstroms
+# h_cutoff:          1.0 Angstroms
+# bond_cutoff:       1.5 Angstroms
+# input_file:        STx_prot
+# ff_files:          clayff, cvff
+# water_file:        szscerba
+# Force field parameters:
+#                    - ao
+#                    - mgo
+#                    - st
+#                    - ho
+#                    - ob
+#                    - ohs
+#                    - obos
+#                    - oh
+#                    - Ca
+#                    - o*
+#                    - h*
+#  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _ _ 
+# (_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)
+# (_)                                                         (_)
+# (_) _        _    __  __ __  __ ____  ____    __  __ _____  (_)
+# (_)| |      / \  |  \/  |  \/  |  _ \/ ___|  |  \/  |_   _| (_)
+# (_)| |     / _ \ | |\/| | |\/| | |_) \___ \  | |\/| | | |   (_)
+# (_)| |___ / ___ \| |  | | |  | |  __/ ___) | | |  | | | |   (_)
+# (_)|_____/_/_  \_\_|  |_|_|  |_|_| __|____/  |_|__|_| |_|   (_)
+# (_)|  _ \  / \|_   _|/ \    |  ___|_ _| |   | ____|         (_)
+# (_)| | | |/ _ \ | | / _ \   | |_   | || |   |  _|           (_)
+# (_)| |_| / ___ \| |/ ___ \  |  _|  | || |___| |___          (_)
+# (_)|____/_/___\_\_/_/ __\_\ |_|_  |___|_____|_____| ____    (_)
+# (_) / ___| ____| \ | | ____|  _ \    / \|_   _/ _ \|  _ \   (_)
+# (_)| |  _|  _| |  \| |  _| | |_) |  / _ \ | || | | | |_) |  (_)
+# (_)| |_| | |___| |\  | |___|  _ <  / ___ \| || |_| |  _ <   (_)
+# (_) \____|_____|_| \_|_____|_| \_\/_/   \_\_| \___/|_| \_\  (_)
+# (_) _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _  _ (_)
+# (_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)(_)
+# ---------------------------------------------------------------
 ```
 
 

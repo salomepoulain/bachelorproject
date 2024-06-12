@@ -1,5 +1,5 @@
 '''
-Function to trim the structure, used for creating the first unit cell
+Function to trim the clay structure, used for creating the first unit cell
 '''
 def trim_structure(self):
     x_trim_start = -2.876

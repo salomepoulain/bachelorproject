@@ -2,34 +2,45 @@ from code.classes.SystemParts import Atom, Molecule
 from code.classes.ChosenSettings import ChosenSettings
 import random
 import math
+from typing import List, Tuple
 
-class WaterBoxBuilder():
-    def __init__(self, ion_count, settings):
+"""
+This module defines the WaterBoxBuilder class, which is responsible for building and
+manipulating water molecules based on input settings. The class loads water molecules
+from an XYZ file, calculates the dimensions of the water molecules, determines the
+duplication factor for water molecules, replicates water molecules to fill the system
+dimensions, removes water molecules outside the system dimensions, and translates water
+molecules up by the height of the clay plus the water distance.
+"""
+
+class WaterBoxBuilder:
+    def __init__(self, ion_count: int, settings: ChosenSettings) -> None:
         self.s = settings
 
         self.water_file = 'water/' + self.s.water_file + '.xyz'
+        self.molecules: List[Molecule] = self.load_water_molecules()
+        self.dimensions: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]] = self.get_water_dimensions()
+        self.ion_count: int = ion_count
 
-        self.molecules = self.load_water_molecules()
-        self.dimensions = self.get_water_dimensions()
-
-        self.ion_count = ion_count
-
-    def determine_water_duplication(self):
+    def determine_water_duplication(self) -> int:
+        """
+        Determine the duplication factor for water molecules based on the water per ion setting.
+        """
         duplication_factor = 1
-        if self.s.water_per_ion == 0:
+        if self.s.water_per_ion == 0 or self.ion_count == 0:
             return 0
 
-        if self.ion_count == 0:
-            return 0
-        
         real_water_per_ion = len(self.molecules) / self.ion_count
 
         if real_water_per_ion < self.s.water_per_ion:
             duplication_factor = math.ceil(self.s.water_per_ion / real_water_per_ion)
 
         return duplication_factor
-    
-    def add_molecules(self, atoms):
+
+    def add_molecules(self, atoms: List[Tuple[str, Tuple[float, float, float]]]) -> List[Molecule]:
+        """
+        Create water molecules from the given atoms list.
+        """
         molecules = []
         counter = 0
         water = Molecule()
@@ -42,7 +53,7 @@ class WaterBoxBuilder():
             elif element == "H":
                 water.add_atom(element, position)
                 counter += 1
-            
+
             if counter == 3:
                 molecules.append(water)
                 counter = 0
@@ -51,7 +62,10 @@ class WaterBoxBuilder():
         
         return molecules
 
-    def load_water_molecules(self):
+    def load_water_molecules(self) -> List[Molecule]:
+        """
+        Load water molecules from the water file.
+        """
         atoms = []
         with open(self.water_file, 'r') as file:
             lines = file.readlines()
@@ -64,8 +78,11 @@ class WaterBoxBuilder():
                 atoms.append((element, position))
 
         return self.add_molecules(atoms)
-    
-    def get_water_dimensions(self):
+
+    def get_water_dimensions(self) -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]]:
+        """
+        Calculate the dimensions of the water molecules.
+        """
         atoms = [atom for molecule in self.molecules for atom in molecule.atoms]
 
         min_x = min_y = min_z = float('inf')
@@ -82,7 +99,10 @@ class WaterBoxBuilder():
         
         return ((min_x, max_x), (min_y, max_y), (min_z, max_z))
 
-    def translate_new_origin(self, new_origin_x, new_origin_y, new_origin_z):
+    def translate_new_origin(self, new_origin_x: float, new_origin_y: float, new_origin_z: float) -> None:
+        """
+        Translate water molecules to a new origin.
+        """
         atoms = [atom for molecule in self.molecules for atom in molecule.atoms]
 
         current_min_x, _ = self.dimensions[0]
@@ -99,7 +119,10 @@ class WaterBoxBuilder():
 
         self.get_water_dimensions()
 
-    def calculate_replication(self, system_dimensions: tuple):
+    def calculate_replication(self, system_dimensions: Tuple[float, float, float]) -> Tuple[int, int, int]:
+        """
+        Calculate the replication factors for water molecules to fill the system dimensions.
+        """
         unit_x = self.dimensions[0][1] - self.dimensions[0][0]
         unit_y = self.dimensions[1][1] - self.dimensions[1][0]
         unit_z = self.determine_water_duplication()
@@ -109,7 +132,10 @@ class WaterBoxBuilder():
 
         return n_x, n_y, unit_z
 
-    def replicate_water(self, system_dimensions: tuple):
+    def replicate_water(self, system_dimensions: Tuple[float, float, float]) -> None:
+        """
+        Replicate water molecules to fill the system dimensions.
+        """
         n_x, n_y, n_z = self.calculate_replication(system_dimensions)
         original_molecules = list(self.molecules)
         unit_x = self.dimensions[0][1] - self.dimensions[0][0]
@@ -137,8 +163,11 @@ class WaterBoxBuilder():
                         self.molecules.append(new_molecule)
 
         self.get_water_dimensions()
-    
-    def remove_outside_box(self, system_dimensions: tuple):
+
+    def remove_outside_box(self, system_dimensions: Tuple[float, float, float]) -> None:
+        """
+        Remove water molecules that are outside the given system dimensions.
+        """
         new_molecules = []
         for molecule in self.molecules:
             all_atoms_within_bounds = True
@@ -154,7 +183,10 @@ class WaterBoxBuilder():
         self.molecules = new_molecules
         self.get_water_dimensions()
 
-    def translate_up(self, clay_height):
+    def translate_up(self, clay_height: float) -> None:
+        """
+        Translate water molecules up by the height of the clay plus the water distance.
+        """
         for molecule in self.molecules:
             for atom in molecule.atoms:
                 x, y, z = atom.position
@@ -162,7 +194,10 @@ class WaterBoxBuilder():
 
         self.get_water_dimensions()
 
-    def change_water_per_ions(self):
+    def change_water_per_ions(self) -> None:
+        """
+        Adjust the number of water molecules based on the water per ion setting.
+        """
         if self.s.water_per_ion is None or self.s.water_per_ion < 0.0:
             return            
         
@@ -177,11 +212,3 @@ class WaterBoxBuilder():
                 water_to_remove = random.sample(waters, remove_water_count)
                 for water in water_to_remove:
                     self.molecules.remove(water)
-
-
-    
-
-    
-
-
-    
