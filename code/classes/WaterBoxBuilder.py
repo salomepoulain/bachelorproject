@@ -14,8 +14,9 @@ molecules up by the height of the clay plus the water distance.
 """
 
 class WaterBoxBuilder:
-    def __init__(self, ion_count: int, settings: ChosenSettings) -> None:
+    def __init__(self, ion_count: int, settings: ChosenSettings, seed: int = 42) -> None:
         self.s = settings
+        random.seed(self.s.random_seed) 
 
         self.water_file = 'water/' + self.s.water_file + '.xyz'
         self.molecules: List[Molecule] = self.load_water_molecules()
