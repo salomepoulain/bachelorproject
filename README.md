@@ -65,7 +65,7 @@ Here is a visualization of the most important folders and files:
 - `ChosenSettings`: stores all inital system setting chosen by main.
 - `ClayBuilder`: builds the system by repliating it in x and y direction, adding mg substitutes by specified ratio via random seed. Allocates the specified forcefield using SystemAllocator.
 - `SolventIonAdder`: adds ions based on ending net charge by distributing them in a grid pattern. Adds water using a WaterBoxBuilder class. Allocates new parts with SystemAllocator
-- `SystemBoxBuilder`: contains methods to add the right amount of water per ion using by duplicating the existing reference water model spc216 and then randomly deleting water molecules if necessary.
+- `SystemBoxBuilder`: contains methods to add the right amount of water per ion using by duplicating the existing reference water model and then randomly (using the seed) deleting water molecules if necessary.
 - `VerticalDuplicator`: duplicates the entire created system vertically, if chosen, to increase clay layers. Note: Ions are duplicated as well, this might effect the final charge differing from chosen charge.
 
 #### PROCESSING
