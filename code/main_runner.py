@@ -118,12 +118,12 @@ def main(replication: Tuple[int, int, int],
         # Prepare the final text to display
         final_text = (
             f"Finished writing .data file for {replication[0]}x{replication[1]}x{replication[2]} system.\n\n"
-            f"○ Output file:    {runner.output_name}.data\n"
-            f"○ Water per ion:  {water_per_ion}\n"
-            f"○ System charge:  {runner.system_charge:.3f}\n"
-            f"○ Ions added:     {runner.ion_count}\n"
-            f"○ Water added:    {len([molecule for molecule in runner.molecules if molecule.type == 'water'])}\n"
-            f"○ Final charge:   {runner.final_charge:.3f}"
+            f"○ Output file:            {runner.output_name}.data\n"
+            f"○ Water per ion:          {water_per_ion}\n"
+            f"○ Sheet charge:           {runner.system_charge:.3f}\n"
+            f"○ Ions per sheet added:   {runner.ion_count}\n"
+            f"○ Total water added:      {len([molecule for molecule in runner.molecules if molecule.type == 'water'])}\n"
+            f"○ Total final charge:     {runner.final_charge:.3f}"
         )
 
     finally:
